@@ -14,80 +14,126 @@ from xml.dom import minidom
 
 st.set_page_config(
     page_title="Trộn Đề Word - THPT Minh Đức",
-    page_icon="🎲",
+    page_icon="🧬",
     layout="centered",
     initial_sidebar_state="collapsed"
 )
 
-# Custom CSS
+# Custom CSS - GIAO DIỆN KHOA HỌC & HIỆN ĐẠI
 st.markdown("""
 <style>
+    /* 1. THIẾT LẬP NỀN TRANG (BACKGROUND) - MÀU KHOA HỌC HIỆN ĐẠI */
+    [data-testid="stAppViewContainer"] {
+        background-color: #f1f5f9; /* Màu xám xanh nhạt (Slate 100) */
+        background-image: radial-gradient(#e2e8f0 1px, transparent 1px);
+        background-size: 20px 20px; /* Họa tiết chấm bi nhỏ tạo cảm giác kỹ thuật */
+    }
+
+    [data-testid="stHeader"] {
+        background-color: rgba(0,0,0,0); /* Ẩn header mặc định của Streamlit */
+    }
+
+    /* 2. KHUNG TIÊU ĐỀ CHÍNH (MAIN HEADER) */
     .main-header {
         text-align: center;
-        padding: 1rem 0;
-        background-color: #f8fafc;
-        border-radius: 15px;
-        margin-bottom: 20px;
-        border: 1px solid #e2e8f0;
+        padding: 2rem 1rem;
+        background-color: #ffffff; /* Nền trắng sạch */
+        border-radius: 20px; /* Bo góc hiện đại */
+        margin-bottom: 30px;
+        
+        /* Hiệu ứng bóng đổ (Soft Shadow) tạo chiều sâu */
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 
+                    0 4px 6px -2px rgba(0, 0, 0, 0.025);
+        border-top: 6px solid #0d9488; /* Thanh điểm nhấn màu Xanh Ngọc ở trên cùng */
     }
+    
+    /* Tên Trường - MÀU XANH NGỌC (TEAL) */
     .main-header h1 {
-        color: #0f172a; /* Màu đậm cho tên trường */
+        color: #0d9488; 
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         font-size: 2.2rem;
-        margin-bottom: 0.2rem;
-        text-transform: uppercase; /* In hoa */
-        font-weight: 900; /* Chữ siêu đậm */
+        margin-bottom: 0.5rem;
+        text-transform: uppercase;
+        font-weight: 800; /* Chữ siêu đậm */
+        letter-spacing: 1px; /* Khoảng cách chữ rộng thoáng */
     }
+    
+    /* Tên Phần mềm */
     .main-header h2 {
-        color: #0d9488;
-        font-size: 1.5rem;
-        font-weight: bold;
-        margin-top: 0;
-    }
-    .main-header p {
-        color: #475569;
-        font-size: 1.1rem;
+        color: #64748b; /* Màu xám ghi (Slate 500) tinh tế */
+        font-size: 1.4rem;
         font-weight: 600;
+        margin-top: 0;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
     }
+    
+    /* Thông tin GV & Zalo - MÀU XANH NGỌC (TEAL) */
+    .main-header p {
+        color: #0d9488;
+        font-size: 1.15rem;
+        font-weight: 700;
+        margin-top: 1rem;
+        padding-top: 1rem;
+        border-top: 1px dashed #cbd5e1; /* Đường kẻ ngăn cách mảnh */
+        display: inline-block;
+    }
+
+    /* 3. NÚT BẤM (BUTTON) - STYLE HIỆN ĐẠI */
     .stButton > button {
         width: 100%;
-        background: linear-gradient(90deg, #0d9488, #14b8a6);
+        background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%); /* Gradient chéo */
         color: white;
         border: none;
-        padding: 0.75rem 1.5rem;
+        padding: 0.8rem 1.5rem;
         font-size: 1.1rem;
-        font-weight: bold;
-        border-radius: 10px;
-        transition: all 0.3s;
+        font-weight: 600;
+        border-radius: 12px;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 6px rgba(13, 148, 136, 0.3);
     }
     .stButton > button:hover {
-        background: linear-gradient(90deg, #0f766e, #0d9488);
-        box-shadow: 0 4px 15px rgba(13, 148, 136, 0.4);
+        transform: translateY(-2px); /* Hiệu ứng nổi lên khi di chuột */
+        box-shadow: 0 8px 15px rgba(13, 148, 136, 0.4);
     }
+
+    /* 4. CÁC KHUNG THÔNG BÁO (BOXES) */
     .info-box {
-        background: #f0fdfa;
-        border: 1px solid #99f6e4;
-        border-radius: 10px;
-        padding: 1rem;
+        background: #ffffff;
+        border-left: 5px solid #0ea5e9; /* Viền trái màu xanh dương */
+        border-radius: 8px;
+        padding: 1.2rem;
         margin: 1rem 0;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        color: #334155;
     }
+    
     .success-box {
         background: #ecfdf5;
-        border: 1px solid #6ee7b7;
-        border-radius: 10px;
+        border: 1px solid #10b981;
+        color: #047857;
+        border-radius: 12px;
         padding: 1rem;
         text-align: center;
+        margin-top: 1rem;
+        font-weight: bold;
     }
+
+    /* 5. FOOTER */
     .footer {
         text-align: center;
-        color: #888;
-        padding: 2rem 0 1rem 0;
+        color: #94a3b8;
+        padding: 3rem 0 1rem 0;
         font-size: 0.85rem;
-        border-top: 1px solid #eee;
         margin-top: 20px;
     }
-    .footer a {
+    .footer strong {
         color: #0d9488;
-        text-decoration: none;
+    }
+    
+    /* Tùy chỉnh input number */
+    div[data-baseweb="input"] {
+        border-radius: 10px;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -133,7 +179,7 @@ def style_run_blue_bold(run):
     else:
         color_el = doc.createElementNS(W_NS, "w:color")
         rPr.appendChild(color_el)
-    color_el.setAttributeNS(W_NS, "w:val", "0000FF")
+    color_el.setAttributeNS(W_NS, "w:val", "0000FF") 
     
     b_list = rPr.getElementsByTagNameNS(W_NS, "b")
     if not b_list:
@@ -585,7 +631,7 @@ def create_zip_multiple(file_bytes, base_name, num_versions, shuffle_mode):
 # ==================== GIAO DIỆN STREAMLIT ====================
 
 def main():
-    # Header - ĐÃ SỬA THEO YÊU CẦU
+    # Header - ĐÃ CẬP NHẬT THEO YÊU CẦU
     st.markdown("""
     <div class="main-header">
         <h1>[ TRƯỜNG THPT MINH ĐỨC ]</h1>
@@ -612,7 +658,7 @@ def main():
         📥 [Tải file mẫu](https://drive.google.com/file/d/1_2zhqxwoMQ-AINMfCqy6QbZyGU4Skg3n/view)
         """)
     
-    st.divider()
+    st.markdown('<div class="info-box">👇 Bắt đầu bằng việc tải file lên bên dưới</div>', unsafe_allow_html=True)
     
     # 1. Upload file
     st.subheader("1️⃣ Chọn file đề Word")
@@ -659,7 +705,7 @@ def main():
         )
     with col2:
         st.markdown(f"""
-        <div style="padding-top: 8px; color: #666;">
+        <div style="padding-top: 8px; color: #475569; font-weight: 500;">
             {"📄 Xuất 1 file Word" if num_versions == 1 else f"📦 Xuất file ZIP chứa {num_versions} mã đề"}
         </div>
         """, unsafe_allow_html=True)
@@ -709,7 +755,7 @@ def main():
             except Exception as e:
                 st.error(f"❌ Lỗi: {str(e)}")
     
-    # Footer - ĐÃ SỬA THEO YÊU CẦU
+    # Footer
     st.markdown("""
     <div class="footer">
         <p>© 2024 <strong>Nguyễn Văn Hà</strong> - Zalo: 0907781595</p>
