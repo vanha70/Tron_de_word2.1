@@ -1,6 +1,6 @@
 """
 TRỘN ĐỀ WORD - THPT MINH ĐỨC
-Phiên bản Clean-HTML (Sửa lỗi hiển thị mã nguồn)
+Phiên bản: Chia 3 phần cố định (1-18, 19-22, 23-28)
 """
 
 import streamlit as st
@@ -18,14 +18,14 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# 2. CSS (GIAO DIỆN)
+# 2. CSS GIAO DIỆN (GIỮ NGUYÊN BẢN ĐẸP)
 st.markdown("""
 <style>
     /* Ẩn header mặc định */
     header {visibility: hidden;}
     .stApp > header {display: none;}
     
-    /* Xóa lề để header full màn hình */
+    /* Xóa lề */
     .block-container {
         padding-top: 0rem !important;
         padding-bottom: 5rem !important;
@@ -39,7 +39,7 @@ st.markdown("""
         background-color: #f4f6f9;
     }
 
-    /* HEADER MÀU CAM */
+    /* HEADER */
     .header-wrapper {
         background: linear-gradient(135deg, #ff9966 0%, #ff5e62 100%);
         padding-top: 3rem;
@@ -79,7 +79,7 @@ st.markdown("""
         margin-top: 5px;
     }
 
-    /* Nút Đăng nhập/Đăng ký giả lập */
+    /* Nút giả lập */
     .btn-group-fake {
         margin-top: 20px;
         display: flex;
@@ -127,7 +127,6 @@ st.markdown("""
         z-index: 99;
     }
     
-    /* Nút bấm Streamlit */
     .stButton > button {
         background: linear-gradient(90deg, #ff9966, #ff5e62);
         color: white;
@@ -152,12 +151,12 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# 3. HTML HEADER (LƯU Ý: KHÔNG ĐƯỢC THỤT ĐẦU DÒNG CÁC DÒNG HTML NÀY)
+# 3. HTML HEADER
 HEADER_HTML = """
 <div class="header-wrapper">
 <div class="school-tag">TRƯỜNG THPT MINH ĐỨC</div>
 <div class="main-h1">TRỘN ĐỀ TRẮC NGHIỆM</div>
-<div class="sub-text">Chuẩn bị tài liệu định dạng đúng để trộn đề nhanh chóng</div>
+<div class="sub-text">Chia 3 phần: TN (1-18), Đ/S (19-22), TLN (23-28)</div>
 <div class="btn-group-fake">
 <span class="btn-outline">Đăng nhập</span>
 <span class="btn-filled">Đăng ký</span>
@@ -165,11 +164,9 @@ HEADER_HTML = """
 <div class="info-gv">GV: Nguyễn Văn Hà • Zalo: 0913968302</div>
 </div>
 """
-
-# Hiển thị Header
 st.markdown(HEADER_HTML, unsafe_allow_html=True)
 
-# 4. GIAO DIỆN CHỨC NĂNG (CARD)
+# 4. GIAO DIỆN CARD
 st.markdown('<div class="main-card">', unsafe_allow_html=True)
 
 # Tab giả lập
@@ -180,24 +177,19 @@ with cols[1]:
     st.markdown('<div style="text-align:center; color:#ccc; font-weight:500;">📷 QR Code</div>', unsafe_allow_html=True)
 
 st.write("")
-
-# Upload File
 uploaded_file = st.file_uploader("Kéo thả file .docx vào đây", type=['docx'])
 
 if uploaded_file:
     st.success(f"✅ Đã chọn: {uploaded_file.name}")
 
 st.write("")
-
-# Tùy chọn
-c1, c2 = st.columns(2)
-with c1:
-    mode = st.selectbox("Chế độ", ["Trắc nghiệm (MCQ)", "Đúng/Sai (TF)"])
-    mode_val = "mcq" if "MCQ" in mode else "tf"
-with c2:
+col_num, col_empty = st.columns([1, 1])
+with col_num:
     num = st.number_input("Số lượng đề", 1, 50, 4)
+with col_empty:
+    st.info("Cấu trúc cố định:\nP1: Câu 1-18\nP2: Câu 19-22\nP3: Câu 23-28")
 
-# Logic xử lý Word
+# ==================== LOGIC XỬ LÝ 3 PHẦN ====================
 W_NS = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
 
 def get_text(block):
@@ -225,104 +217,71 @@ def style_run_blue_bold(run):
         b_el = doc.createElementNS(W_NS, "w:b")
         rPr.appendChild(b_el)
 
-def update_label_in_p(p, new_text):
-    t_nodes = p.getElementsByTagNameNS(W_NS, "t")
-    for t in t_nodes:
-        if t.firstChild:
-            t.firstChild.nodeValue = new_text
-            if t.parentNode.localName == "r": style_run_blue_bold(t.parentNode)
-            break
+def parse_all_questions(blocks):
+    """Tách toàn bộ file thành danh sách các câu hỏi"""
+    intro = []
+    questions = []
+    i = 0
+    # Lấy phần đầu (Intro)
+    while i < len(blocks):
+        if re.match(r'^Câu\s*\d+', get_text(blocks[i])): break
+        intro.append(blocks[i])
+        i += 1
+    
+    # Lấy các câu hỏi
+    while i < len(blocks):
+        if re.match(r'^Câu\s*\d+', get_text(blocks[i])):
+            group = [blocks[i]]
+            i += 1
+            while i < len(blocks):
+                txt = get_text(blocks[i])
+                # Dừng nếu gặp Câu mới hoặc chữ PHẦN
+                if re.match(r'^Câu\s*\d+', txt) or "PHẦN" in txt.upper(): break
+                group.append(blocks[i])
+                i += 1
+            questions.append(group)
+        else:
+            i += 1
+    return intro, questions
 
-def shuffle_docx(file_bytes, num_copies, mode):
+def shuffle_options_mcq(q_block):
+    """Trộn A,B,C,D (Cho phần 1)"""
+    indices = [x for x, b in enumerate(q_block) if re.match(r'^\s*[A-D][\.\)]', get_text(b))]
+    if len(indices) >= 2:
+        opts = [q_block[x] for x in indices]
+        random.shuffle(opts)
+        lbls = ["A.", "B.", "C.", "D."]
+        for x_idx, opt in zip(indices, opts):
+            q_block[x_idx] = opt
+            t_nodes = opt.getElementsByTagNameNS(W_NS, "t")
+            for t in t_nodes:
+                if t.firstChild:
+                    cur_lbl = lbls[indices.index(x_idx)] if indices.index(x_idx) < 4 else ""
+                    # Thay thế ký tự đầu
+                    t.firstChild.nodeValue = re.sub(r'^\s*[A-D][\.\)]', cur_lbl, t.firstChild.nodeValue, 1)
+                    style_run_blue_bold(t.parentNode)
+                    break
+    return q_block
+
+def shuffle_options_tf(q_block):
+    """Trộn a,b,c,d (Cho phần 2 - Đúng Sai)"""
+    # Tìm các dòng a) b) c) d)
+    indices = [x for x, b in enumerate(q_block) if re.match(r'^\s*[a-d][\.\)]', get_text(b))]
+    if len(indices) >= 2:
+        opts = [q_block[x] for x in indices]
+        random.shuffle(opts)
+        lbls = ["a)", "b)", "c)", "d)"]
+        for x_idx, opt in zip(indices, opts):
+            q_block[x_idx] = opt
+            t_nodes = opt.getElementsByTagNameNS(W_NS, "t")
+            for t in t_nodes:
+                if t.firstChild:
+                    cur_lbl = lbls[indices.index(x_idx)] if indices.index(x_idx) < 4 else ""
+                    t.firstChild.nodeValue = re.sub(r'^\s*[a-d][\.\)]', cur_lbl, t.firstChild.nodeValue, 1)
+                    style_run_blue_bold(t.parentNode)
+                    break
+    return q_block
+
+def shuffle_docx(file_bytes, num_copies):
     out_zip = io.BytesIO()
     with zipfile.ZipFile(out_zip, 'w', zipfile.ZIP_DEFLATED) as z_out:
-        in_io = io.BytesIO(file_bytes)
-        with zipfile.ZipFile(in_io, 'r') as z_in:
-            xml = z_in.read("word/document.xml")
-            for i in range(num_copies):
-                dom = minidom.parseString(xml)
-                body = dom.getElementsByTagNameNS(W_NS, "body")[0]
-                blocks = [n for n in body.childNodes if n.localName in ['p', 'tbl']]
-                
-                # Tách câu hỏi
-                intro, questions = [], []
-                k = 0
-                while k < len(blocks):
-                    if re.match(r'^Câu\s*\d+', get_text(blocks[k])): break
-                    intro.append(blocks[k])
-                    k += 1
-                while k < len(blocks):
-                    if re.match(r'^Câu\s*\d+', get_text(blocks[k])):
-                        grp = [blocks[k]]
-                        k += 1
-                        while k < len(blocks):
-                            txt = get_text(blocks[k])
-                            if re.match(r'^Câu\s*\d+', txt) or "PHẦN" in txt.upper(): break
-                            grp.append(blocks[k])
-                            k += 1
-                        questions.append(grp)
-                    else: k += 1
-                
-                random.shuffle(questions)
-                
-                # Xử lý từng câu
-                final_blocks = intro[:]
-                for q_idx, q_grp in enumerate(questions):
-                    # Update số câu
-                    t_list = q_grp[0].getElementsByTagNameNS(W_NS, "t")
-                    for t in t_list:
-                        if t.firstChild and re.match(r'^Câu\s*\d+', t.firstChild.nodeValue):
-                            t.firstChild.nodeValue = re.sub(r'^Câu\s*\d+', f"Câu {q_idx+1}", t.firstChild.nodeValue)
-                            style_run_blue_bold(t.parentNode)
-                            break
-                    
-                    # Trộn đáp án
-                    pat = r'^\s*[A-D][\.\)]' if mode == "mcq" else r'^\s*[a-d][\.\)]'
-                    lbls = ["A.","B.","C.","D."] if mode == "mcq" else ["a)","b)","c)","d)"]
-                    
-                    indices = [x for x, b in enumerate(q_grp) if re.match(pat, get_text(b))]
-                    if len(indices) >= 2:
-                        opts = [q_grp[x] for x in indices]
-                        random.shuffle(opts)
-                        for x_idx, opt in zip(indices, opts):
-                            q_grp[x_idx] = opt
-                            t_nodes = opt.getElementsByTagNameNS(W_NS, "t")
-                            for t in t_nodes:
-                                if t.firstChild:
-                                    cur_lbl = lbls[indices.index(x_idx)] if indices.index(x_idx) < 4 else ""
-                                    t.firstChild.nodeValue = re.sub(pat, cur_lbl, t.firstChild.nodeValue, 1)
-                                    style_run_blue_bold(t.parentNode)
-                                    break
-                    final_blocks.extend(q_grp)
-
-                # Rebuild XML
-                for n in list(body.childNodes):
-                    if n.localName in ['p', 'tbl']: body.removeChild(n)
-                for b in final_blocks: body.appendChild(b)
-                
-                # Save
-                new_xml = dom.toxml().encode('utf-8')
-                docx_io = io.BytesIO()
-                with zipfile.ZipFile(docx_io, 'w', zipfile.ZIP_DEFLATED) as z_d:
-                    for item in z_in.infolist():
-                        if item.filename == "word/document.xml": z_d.writestr(item.filename, new_xml)
-                        else: z_d.writestr(item.filename, z_in.read(item.filename))
-                z_out.writestr(f"De_Tron_Ma_{i+1}.docx", docx_io.getvalue())
-    return out_zip.getvalue()
-
-# Button Action
-if st.button("🚀 TRỘN ĐỀ NGAY"):
-    if not uploaded_file:
-        st.warning("Vui lòng chọn file!")
-    else:
-        try:
-            with st.spinner("Đang xử lý..."):
-                res = shuffle_docx(uploaded_file.read(), num, mode_val)
-                st.success("Xong!")
-                st.download_button("📥 Tải xuống (ZIP)", res, "KetQua.zip", "application/zip")
-                st.balloons()
-        except Exception as e:
-            st.error(f"Lỗi: {e}")
-
-st.markdown('</div>', unsafe_allow_html=True) # End card
-st.markdown('<div class="footer">© 2024 THPT Minh Đức</div>', unsafe_allow_html=True)
