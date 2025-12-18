@@ -1,9 +1,8 @@
 """
-PHẦN MỀM TRỘN ĐỀ - THPT MINH ĐỨC (FINAL PRO)
-Tính năng cập nhật:
-1. Fix lỗi mất đáp án P3 (Thuật toán quét sâu Multi-block Regex).
-2. Giao diện Xanh Ngọc (Teal) hiện đại, Font chữ chuẩn không lỗi.
-3. Output: 1 File Zip duy nhất (Chứa thư mục Đề thi + File Excel Đáp án).
+PHẦN MỀM TRỘN ĐỀ - THPT MINH ĐỨC (FIX MÀU CHỮ)
+Cập nhật:
+1. Sửa lỗi hiển thị: Phương án A, B, C, D về màu đen chuẩn (chỉ in đậm), không còn bị xanh.
+2. Giữ nguyên: Giao diện Xanh Ngọc, Logic 3 phần, Xuất 1 file Zip.
 """
 
 import streamlit as st
@@ -36,7 +35,7 @@ CUSTOM_CSS = """
     /* Nền trang Gradient Xanh Ngọc dịu mắt */
     [data-testid="stAppViewContainer"] {
         background: linear-gradient(135deg, #e0f2f1 0%, #b2dfdb 100%);
-        font-family: 'Arial', sans-serif;
+        font-family: 'Segoe UI', sans-serif;
     }
 
     /* HEADER */
@@ -52,9 +51,9 @@ CUSTOM_CSS = """
 
     .school-name {
         color: #004d40;
-        font-family: 'Times New Roman', serif; /* Font chuẩn Tiếng Việt */
+        font-family: 'Times New Roman', serif;
         font-size: 2rem;
-        font-weight: 900; /* Chữ siêu đậm */
+        font-weight: 900;
         text-transform: uppercase;
         margin-bottom: 5px;
         text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
@@ -62,7 +61,7 @@ CUSTOM_CSS = """
     }
 
     .software-name {
-        color: #00897b; /* Màu xanh ngọc đậm */
+        color: #00897b;
         font-size: 1.8rem;
         font-weight: 800;
         margin: 10px 0;
@@ -115,11 +114,6 @@ CUSTOM_CSS = """
         color: #546e7a;
         font-size: 0.9rem;
     }
-    
-    /* Thông báo */
-    .stAlert {
-        border-radius: 10px;
-    }
 </style>
 """
 
@@ -150,7 +144,7 @@ def create_paragraph(doc, text, align="left", bold=False):
     r = create_element(doc, "w:r")
     rPr = create_element(doc, "w:rPr")
     
-    # Set Font Times New Roman để không lỗi ô vuông
+    # Set Font Times New Roman
     rFonts = create_element(doc, "w:rFonts")
     rFonts.setAttributeNS(W_NS, "w:ascii", "Times New Roman")
     rFonts.setAttributeNS(W_NS, "w:hAnsi", "Times New Roman")
@@ -217,17 +211,18 @@ def remove_answer_signal(run_node):
     for c in rPr.getElementsByTagNameNS(W_NS, "color"): rPr.removeChild(c)
 
 def style_label(run_node, doc):
-    """Tô xanh đậm nhãn A. B. C."""
+    """
+    SỬA LỖI: Chỉ in đậm (Bold) cho nhãn A. B. C. D.
+    Đã BỎ tô màu xanh (Blue) để tránh lỗi cả dòng bị xanh.
+    """
     rPr_list = run_node.getElementsByTagNameNS(W_NS, "rPr")
     if rPr_list: rPr = rPr_list[0]
     else:
         rPr = doc.createElementNS(W_NS, "w:rPr")
         run_node.insertBefore(rPr, run_node.firstChild)
     
-    if not rPr.getElementsByTagNameNS(W_NS, "color"):
-        c = doc.createElementNS(W_NS, "w:color")
-        c.setAttributeNS(W_NS, "w:val", "0000FF")
-        rPr.appendChild(c)
+    # XÓA ĐOẠN CODE TÔ MÀU XANH CŨ
+    # Chỉ giữ lại In đậm
     if not rPr.getElementsByTagNameNS(W_NS, "b"):
         rPr.appendChild(doc.createElementNS(W_NS, "w:b"))
 
@@ -272,7 +267,7 @@ def process_mcq(q_blocks, doc):
             is_cor = False
             for r in runs:
                 if check_is_correct(r): is_cor = True
-                remove_answer_signal(r) # Xóa gạch chân
+                remove_answer_signal(r) # Xóa gạch chân/đỏ
             if is_cor: target_opt = opt
             
         random.shuffle(opts)
@@ -288,7 +283,9 @@ def process_mcq(q_blocks, doc):
             t_nodes = opt.getElementsByTagNameNS(W_NS, "t")
             for t in t_nodes:
                 if t.firstChild:
+                    # Thay thế A. B. C. D.
                     t.firstChild.nodeValue = re.sub(pat, lbls[idx], t.firstChild.nodeValue, 1)
+                    # Gọi hàm style_label (đã sửa để chỉ in đậm, không in xanh)
                     style_label(t.parentNode, doc)
                     break
     return q_blocks, correct_char
@@ -332,11 +329,10 @@ def process_tf(q_blocks, doc):
 
 def process_short(q_blocks):
     """
-    FIX LỖI: Tìm key trong toàn bộ nội dung câu hỏi
-    Cho phép key nằm bất kỳ đâu, có khoảng trắng (VD: < key = 12 >)
+    Tìm key trong toàn bộ nội dung câu hỏi
     """
     key_val = ""
-    # 1. Gộp toàn bộ text của câu hỏi để quét
+    # 1. Gộp toàn bộ text của câu hỏi để quét tìm key
     full_text = ""
     for b in q_blocks:
         t_nodes = b.getElementsByTagNameNS(W_NS, "t")
@@ -348,12 +344,11 @@ def process_short(q_blocks):
     if m:
         key_val = m.group(1).strip()
         
-        # 3. Xóa thẻ key trong từng node
+        # 3. Xóa thẻ key trong các node
         for b in q_blocks:
             t_nodes = b.getElementsByTagNameNS(W_NS, "t")
             for t in t_nodes:
                 if t.firstChild and '<' in t.firstChild.nodeValue:
-                    # Thay thế regex pattern bằng rỗng
                     val = t.firstChild.nodeValue
                     val = re.sub(r'<\s*key\s*=\s*.*?>', '', val, flags=re.IGNORECASE)
                     t.firstChild.nodeValue = val
@@ -513,7 +508,7 @@ if st.button("🚀 BẮT ĐẦU TRỘN"):
                 st.download_button(
                     label="📥 Tải về (Đề thi + Đáp án)",
                     data=final_zip,
-                    file_name="KetQua_MinhDuc.zip",
+                    file_name="KetQua_TronDe_MinhDuc.zip",
                     mime="application/zip"
                 )
         except Exception as e:
