@@ -1,8 +1,8 @@
 """
-PHẦN MỀM TRỘN ĐỀ - TNMic (FINAL FIX: SYNTAX & COLOR)
-1. Sửa lỗi SyntaxError (Lỗi cú pháp dòng lệnh).
-2. Sửa lỗi Màu sắc: Ép buộc toàn bộ A. B. C. D. thành Xanh Dương + Đậm.
-3. Giao diện: Xanh Ngọc (Teal) khoa học.
+PHẦN MỀM TRỘN ĐỀ - TNMic (TEAL VERSION - FIXED ALL)
+1. Fix SyntaxError.
+2. Fix lỗi hiển thị màu sắc: Đảm bảo 100% A. B. C. D. màu Xanh Dương + In Đậm.
+3. Giao diện: Xanh Ngọc (Teal) hiện đại.
 """
 
 import streamlit as st
@@ -147,6 +147,8 @@ def create_paragraph(doc, text, align="left", bold=False):
     
     r = create_element(doc, "w:r")
     rPr = create_element(doc, "w:rPr")
+    
+    # Font Times New Roman
     rFonts = create_element(doc, "w:rFonts")
     rFonts.setAttributeNS(W_NS, "w:ascii", "Times New Roman")
     rFonts.setAttributeNS(W_NS, "w:hAnsi", "Times New Roman")
@@ -154,6 +156,7 @@ def create_paragraph(doc, text, align="left", bold=False):
     
     if bold: rPr.appendChild(create_element(doc, "w:b"))
     r.appendChild(rPr)
+    
     t = create_element(doc, "w:t")
     t.appendChild(doc.createTextNode(text))
     r.appendChild(t)
@@ -181,6 +184,8 @@ def get_text(block):
         if t.firstChild: texts.append(t.firstChild.nodeValue)
     return "".join(texts).strip()
 
+# --- XỬ LÝ ĐÁP ÁN (GẠCH CHÂN / ĐỎ / KEY) ---
+
 def check_is_correct(run_node):
     rPr_list = run_node.getElementsByTagNameNS(W_NS, "rPr")
     if not rPr_list: return False
@@ -202,7 +207,9 @@ def remove_answer_signal(run_node):
 def style_label_force_blue(run_node, doc):
     """
     FIX COLOR: Ép màu Xanh Dương (#0070C0) và In Đậm
+    Sử dụng logic kiểm tra rPr an toàn.
     """
+    # 1. Lấy hoặc tạo rPr
     rPr_list = run_node.getElementsByTagNameNS(W_NS, "rPr")
     if rPr_list: 
         rPr = rPr_list[0]
@@ -210,19 +217,23 @@ def style_label_force_blue(run_node, doc):
         rPr = doc.createElementNS(W_NS, "w:rPr")
         run_node.insertBefore(rPr, run_node.firstChild)
     
-    # 1. Xóa màu cũ
-    for c in rPr.getElementsByTagNameNS(W_NS, "color"): rPr.removeChild(c)
-    # 2. Xóa bold cũ
-    for b in rPr.getElementsByTagNameNS(W_NS, "b"): rPr.removeChild(b)
+    # 2. Xử lý Màu (Color)
+    colors = rPr.getElementsByTagNameNS(W_NS, "color")
+    if colors:
+        # Nếu đã có thẻ màu, sửa thuộc tính val
+        colors[0].setAttributeNS(W_NS, "w:val", "0070C0")
+    else:
+        # Nếu chưa có, tạo mới
+        color_node = doc.createElementNS(W_NS, "w:color")
+        color_node.setAttributeNS(W_NS, "w:val", "0070C0")
+        rPr.appendChild(color_node)
 
-    # 3. Thêm màu Xanh Dương
-    color_node = doc.createElementNS(W_NS, "w:color")
-    color_node.setAttributeNS(W_NS, "w:val", "0070C0")
-    rPr.appendChild(color_node)
+    # 3. Xử lý In Đậm (Bold)
+    bolds = rPr.getElementsByTagNameNS(W_NS, "b")
+    if not bolds:
+        rPr.appendChild(doc.createElementNS(W_NS, "w:b"))
 
-    # 4. Thêm In Đậm
-    rPr.appendChild(doc.createElementNS(W_NS, "w:b"))
-
+# --- PARSER ---
 def parse_blocks(blocks):
     intro, questions = [], []
     i = 0
@@ -247,7 +258,6 @@ def parse_blocks(blocks):
 # --- PROCESSORS ---
 
 def process_mcq(q_blocks, doc):
-    # Regex tìm A. B. C. D. (để thay thế)
     pat = r'^\s*[A-D][\.\)]'
     indices = [k for k, b in enumerate(q_blocks) if re.match(pat, get_text(b))]
     correct_char = ""
@@ -274,18 +284,24 @@ def process_mcq(q_blocks, doc):
             if target_opt and opt == target_opt:
                 correct_char = lbls[idx][0]
             
-            # Thay thế nhãn và ÉP MÀU
+            # Ép màu cho Run đầu tiên của đoạn văn (thường chứa A. B...)
+            # Điều này đảm bảo dù regex match ở đâu, thì đầu dòng cũng được tô màu.
+            runs = opt.getElementsByTagNameNS(W_NS, "r")
+            if runs:
+                style_label_force_blue(runs[0], doc)
+
+            # Thay thế text nhãn
             t_nodes = opt.getElementsByTagNameNS(W_NS, "t")
             for t in t_nodes:
                 if t.firstChild:
                     val = t.firstChild.nodeValue
-                    # Thay thế ký tự đầu tiên
+                    # Chỉ thay thế lần xuất hiện đầu tiên
                     new_val = re.sub(pat, lbls[idx], val, 1)
-                    t.firstChild.nodeValue = new_val
-                    
-                    # QUAN TRỌNG: Gọi hàm ép màu cho node cha của text này
-                    style_label_force_blue(t.parentNode, doc)
-                    break
+                    if new_val != val:
+                        t.firstChild.nodeValue = new_val
+                        # Đã sửa ở run[0], nhưng nếu text nằm ở run khác thì style lại parent này cho chắc
+                        style_label_force_blue(t.parentNode, doc)
+                        break
                     
     return q_blocks, correct_char
 
@@ -315,12 +331,19 @@ def process_tf(q_blocks, doc):
             curr_lbl = lbls[idx]
             res_str.append(f"{curr_lbl[:-1]}{status_map[opt]}")
             
+            # Ép màu run đầu
+            runs = opt.getElementsByTagNameNS(W_NS, "r")
+            if runs: style_label_force_blue(runs[0], doc)
+
             t_nodes = opt.getElementsByTagNameNS(W_NS, "t")
             for t in t_nodes:
                 if t.firstChild:
-                    t.firstChild.nodeValue = re.sub(pat, curr_lbl, t.firstChild.nodeValue, 1)
-                    style_label_force_blue(t.parentNode, doc)
-                    break
+                    val = t.firstChild.nodeValue
+                    new_val = re.sub(pat, curr_lbl, val, 1)
+                    if new_val != val:
+                        t.firstChild.nodeValue = new_val
+                        style_label_force_blue(t.parentNode, doc)
+                        break
                     
     return q_blocks, " - ".join(res_str)
 
@@ -363,7 +386,7 @@ def generate_mix(file_bytes, num_copies):
                 blocks = [n for n in body.childNodes if n.localName in ['p', 'tbl']]
                 intro, all_qs = parse_blocks(blocks)
                 
-                # CHIA 3 PHẦN
+                # Cắt phần
                 p1_qs = all_qs[0:18]
                 p2_qs = all_qs[18:22]
                 p3_qs = all_qs[22:]
@@ -426,7 +449,7 @@ def generate_mix(file_bytes, num_copies):
                             style_label_force_blue(t.parentNode, dom)
                             break
                     final_blocks.extend(q)
-                    
+                
                 final_blocks.append(create_paragraph(dom, "PHẦN III. Trả lời ngắn (6 câu)", bold=True))
                 for i, q in enumerate(p3_fin):
                     t_list = q[0].getElementsByTagNameNS(W_NS, "t")
