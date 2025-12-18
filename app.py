@@ -1,8 +1,10 @@
 """
-TNMic PRO - PHẦN MỀM TRỘN ĐỀ (RE-ENGINEERED)
-------------------------------------------------
-Cơ chế: Tách nội dung -> Lọc sạch nhãn cũ -> Xây lại đáp án mới.
-Khắc phục: Lỗi trùng lặp, lỗi sót định dạng, lỗi layout.
+TNMic PRO - PHẦN MỀM TRỘN ĐỀ (FINAL V4)
+Tính năng:
+1. Fix lỗi mất phương án (Do Tab/Newline).
+2. Fix lỗi mất câu hỏi (Do gộp dòng).
+3. Giao diện: Xanh Ngọc (Teal).
+4. Logic: Tách hạt nội dung -> Xây dựng lại (Re-build).
 """
 
 import streamlit as st
@@ -13,9 +15,9 @@ import io
 import csv
 from xml.dom import minidom
 
-# ==================== 1. CẤU HÌNH & GIAO DIỆN (TEAL THEME) ====================
+# ==================== 1. CẤU HÌNH & GIAO DIỆN ====================
 st.set_page_config(
-    page_title="TNMic - Trộn Đề Thông Minh",
+    page_title="TNMic - Trộn Đề Trắc Nghiệm",
     page_icon="💎",
     layout="centered",
     initial_sidebar_state="collapsed"
@@ -119,16 +121,34 @@ HEADER_HTML = """
 # ==================== 2. CORE ENGINE (XML PROCESSING) ====================
 W_NS = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
 
-def get_text(node):
-    return "".join([t.firstChild.nodeValue for t in node.getElementsByTagNameNS(W_NS, "t") if t.firstChild])
+def get_full_text_safe(node):
+    """
+    Lấy text an toàn:
+    - Thay thế <w:tab/> bằng khoảng trắng.
+    - Thay thế <w:br/> bằng khoảng trắng/xuống dòng.
+    - Lấy nội dung <w:t>.
+    Điều này giúp tách các đáp án dính liền nhau.
+    """
+    text_parts = []
+    # Duyệt đệ quy hoặc duyệt childNodes phẳng (Paragraph thường phẳng)
+    for child in node.childNodes:
+        if child.localName == "r": # Run
+            for r_child in child.childNodes:
+                if r_child.localName == "t":
+                    if r_child.firstChild: text_parts.append(r_child.firstChild.nodeValue)
+                elif r_child.localName == "tab":
+                    text_parts.append(" ") # Tab -> Space
+                elif r_child.localName == "br":
+                    text_parts.append(" ") # Break -> Space
+    return "".join(text_parts)
 
 def clear_node_content(node):
-    """Xóa sạch nội dung bên trong một node"""
+    """Xóa sạch nội dung bên trong một paragraph"""
     while node.hasChildNodes():
         node.removeChild(node.firstChild)
 
 def create_styled_run(doc, text, color_hex="0070C0", is_bold=True):
-    """Tạo Run mới với định dạng chuẩn (Xanh + Đậm + Times)"""
+    """Tạo Run mới: Font Times, Màu Xanh, In Đậm"""
     r = doc.createElementNS(W_NS, "w:r")
     rPr = doc.createElementNS(W_NS, "w:rPr")
     
@@ -157,11 +177,8 @@ def create_styled_run(doc, text, color_hex="0070C0", is_bold=True):
     r.appendChild(t)
     return r
 
-def check_correct_in_text(full_text, paragraph_node):
-    """
-    Check đúng sai dựa trên định dạng của paragraph gốc.
-    Nếu paragraph gốc có gạch chân/đỏ -> True.
-    """
+def check_correct_in_text(paragraph_node):
+    """Check đúng sai dựa trên định dạng của paragraph gốc (Gạch chân/Đỏ)"""
     runs = paragraph_node.getElementsByTagNameNS(W_NS, "r")
     for r in runs:
         rPr = r.getElementsByTagNameNS(W_NS, "rPr")
@@ -171,103 +188,113 @@ def check_correct_in_text(full_text, paragraph_node):
             if c and c[0].getAttributeNS(W_NS, "val") in ["FF0000", "RED"]: return True
     return False
 
-# ==================== 3. XỬ LÝ NỘI DUNG (CONTENT PARSING) ====================
+# ==================== 3. XỬ LÝ NỘI DUNG (PARSING & CLEANING) ====================
 
-def extract_and_clean_options(q_block, mode="mcq"):
+def extract_and_parse_options(q_block, mode="mcq"):
     """
-    Hút toàn bộ nội dung đáp án, lọc bỏ nhãn cũ (A., B...).
-    Trả về danh sách các đáp án (Text) và trạng thái đúng sai.
+    Hút toàn bộ nội dung, tách câu hỏi và đáp án.
+    Trả về: (Danh sách paragraph chứa đáp án, Danh sách option sạch, Text câu hỏi thừa nếu có)
     """
-    pat = r'(?:^|\s)([A-D][\.\)])' if mode == "mcq" else r'(?:^|\s)([a-d][\.\)])'
+    pat = r'([A-D][\.\)])' if mode == "mcq" else r'([a-d][\.\)])'
     
-    # 1. Tìm các paragraph chứa đáp án
     opt_paragraphs = []
     full_text_buffer = ""
     
+    # 1. Gom text từ các dòng có khả năng chứa đáp án
     for p in q_block:
-        txt = get_text(p)
-        # Nếu dòng chứa pattern đáp án
+        txt = get_full_text_safe(p)
+        # Nếu dòng chứa pattern đáp án (A., B....)
         if re.search(pat, txt):
             opt_paragraphs.append(p)
-            full_text_buffer += " " + txt # Gộp text lại để xử lý trường hợp 1 dòng nhiều đáp án
+            full_text_buffer += " " + txt 
     
-    if not opt_paragraphs: return [], [], []
+    if not opt_paragraphs: return [], [], ""
 
-    # 2. Tách các đáp án từ text gộp
-    # Split bằng regex, giữ lại delimiter (A., B...)
+    # 2. Tách bằng Regex
+    # Split giữ lại delimiter (A., B...)
+    # Thêm lookahead để xử lý dính chữ (vd: A.ĐúngB.Sai) -> Regex phải khéo
+    # Dùng split đơn giản, sau đó clean
     parts = re.split(pat, full_text_buffer)
-    # parts sẽ có dạng: ['', 'A.', 'Nội dung A', 'B.', 'Nội dung B'...]
+    
+    # parts[0] là text TRƯỚC đáp án A (thường là phần đuôi của câu hỏi bị rớt xuống)
+    pre_text = parts[0].strip()
     
     clean_options = []
     
-    # Duyệt qua các phần đã tách
+    # Duyệt từ 1, bước nhảy 2 (Label, Content)
+    # parts: [pre, 'A.', 'Nội dung', 'B.', 'Nội dung'...]
     for i in range(1, len(parts), 2):
+        if i+1 >= len(parts): break
         label = parts[i].strip()
         content = parts[i+1].strip()
         
-        # Xác định đúng sai (Tương đối: Check xem paragraph chứa nội dung này có gạch chân ko)
-        # Để chính xác tuyệt đối cần map lại vị trí text với paragraph.
-        # Ở đây ta dùng cách đơn giản: Nếu paragraph gốc có gạch chân, ta đánh dấu.
-        # Tuy nhiên, khi gộp dòng, việc này khó.
-        # GIẢI PHÁP AN TOÀN: Ta check xem trong content có ký tự nào bị gạch chân không (nếu ta parse sâu).
-        # Tạm thời: Ta dùng check_correct_in_text trên các paragraph gốc.
-        
+        # Check đúng sai: Quét các paragraph gốc xem có cái nào gạch chân chứa content này ko
+        # (Logic tương đối, nhưng an toàn hơn việc parse run từng tí)
         is_correct = False
-        # Quét lại các paragraph để xem paragraph nào chứa nội dung này và có gạch chân
         for p in opt_paragraphs:
-            if content in get_text(p) and check_correct_in_text(get_text(p), p):
+            # Nếu nội dung này nằm trong 1 paragraph có gạch chân -> Đúng
+            if content in get_full_text_safe(p) and check_correct_in_text(p):
                 is_correct = True
                 break
         
         clean_options.append({"text": content, "correct": is_correct})
         
-    return opt_paragraphs, clean_options
+    return opt_paragraphs, clean_options, pre_text
 
-# ==================== 4. LOGIC TRỘN VÀ TÁI TẠO (REBUILD) ====================
+# ==================== 4. LOGIC TÁI TẠO (REBUILDER) ====================
 
-def rebuild_paragraph_options(doc, paragraphs, options, labels):
+def rebuild_paragraph_options(doc, paragraphs, options, labels, pre_text=""):
     """
-    Xây dựng lại các đoạn văn chứa đáp án.
-    paragraphs: Các node paragraph cũ (để ghi đè).
-    options: Danh sách nội dung đáp án đã trộn.
-    labels: Nhãn mới (A., B...)
+    Xóa sạch paragraph cũ, viết lại paragraph mới.
     """
-    # 1. Xóa sạch nội dung các paragraph cũ
-    for p in paragraphs:
-        clear_node_content(p)
-        
-    # 2. Tính toán cách phân bố (Layout)
-    # Nếu số lượng paragraph gốc == số options -> Mỗi option 1 dòng (Chuẩn nhất)
-    # Nếu ít hơn -> Gộp dòng.
-    # Ưu tiên: Xuất ra mỗi option 1 dòng để đảm bảo đẹp và không lỗi.
-    
-    # Sử dụng paragraph đầu tiên làm mẫu, các paragraph thừa có thể xóa hoặc để trống
+    if not paragraphs: return
+
+    # Neo vào paragraph đầu tiên để chèn
     target_p = paragraphs[0]
     parent = target_p.parentNode
     
-    # Xóa các paragraph thừa (nếu có), chỉ giữ 1 cái làm neo, sau đó insert thêm
-    for p in paragraphs[1:]:
-        parent.removeChild(p)
+    # Xóa tất cả paragraph cũ
+    for p in paragraphs:
+        # Nếu là paragraph đầu tiên thì giữ lại (clear content) để làm mốc chèn, sau đó xóa sau
+        # Cách tốt nhất: Chèn cái mới trước cái đầu tiên, rồi xóa hết cái cũ.
+        pass
         
-    # Tạo các paragraph mới cho từng option
+    # Tạo các paragraph mới
+    new_paragraphs = []
+    
+    # 1. Nếu có phần dư của câu hỏi (Pre-text), tạo 1 dòng riêng cho nó
+    if pre_text:
+        p_pre = doc.createElementNS(W_NS, "w:p")
+        # Copy style từ target_p
+        if target_p.getElementsByTagNameNS(W_NS, "pPr"):
+            p_pre.appendChild(target_p.getElementsByTagNameNS(W_NS, "pPr")[0].cloneNode(True))
+        p_pre.appendChild(create_styled_run(doc, pre_text, "000000", False))
+        new_paragraphs.append(p_pre)
+        
+    # 2. Tạo các dòng đáp án (Mỗi đáp án 1 dòng cho đẹp và an toàn)
     for i, opt in enumerate(options):
-        # Tạo P mới
         new_p = doc.createElementNS(W_NS, "w:p")
-        # Copy thuộc tính pPr của dòng đầu (để giữ lề, font...)
+        # Copy style
         if target_p.getElementsByTagNameNS(W_NS, "pPr"):
             new_p.appendChild(target_p.getElementsByTagNameNS(W_NS, "pPr")[0].cloneNode(True))
             
-        # 1. Chèn Nhãn (Xanh + Đậm)
+        # Nhãn (Xanh + Đậm)
         new_p.appendChild(create_styled_run(doc, labels[i] + " ", "0070C0", True))
         
-        # 2. Chèn Nội dung (Đen + Thường)
+        # Nội dung (Đen + Thường)
         new_p.appendChild(create_styled_run(doc, opt['text'], "000000", False))
         
-        # Chèn vào trước target_p (hoặc vị trí cũ)
-        parent.insertBefore(new_p, target_p)
+        new_paragraphs.append(new_p)
         
-    # Xóa cái neo cuối cùng
-    parent.removeChild(target_p)
+    # 3. Thực hiện chèn và xóa
+    # Chèn tất cả cái mới trước cái cũ đầu tiên
+    for np in new_paragraphs:
+        parent.insertBefore(np, target_p)
+        
+    # Xóa tất cả cái cũ
+    for p in paragraphs:
+        if p.parentNode == parent: # Check tồn tại
+            parent.removeChild(p)
 
 def process_mcq_rebuild(questions, doc):
     processed_qs = []
@@ -275,10 +302,10 @@ def process_mcq_rebuild(questions, doc):
     labels = ["A.", "B.", "C.", "D."]
     
     for q_block in questions:
-        # 1. Hút & Làm sạch
-        paragraphs, options_data = extract_and_clean_options(q_block, "mcq")[:2]
+        # 1. Parse
+        paragraphs, options_data, pre_text = extract_and_parse_options(q_block, "mcq")
         
-        # Nếu không tìm thấy đáp án hoặc không đủ 2 đáp án -> Bỏ qua
+        # Nếu không đủ đáp án, giữ nguyên
         if len(options_data) < 2:
             processed_qs.append(q_block)
             keys.append("X")
@@ -291,14 +318,10 @@ def process_mcq_rebuild(questions, doc):
         correct_char = "X"
         for i, opt in enumerate(options_data):
             if opt['correct']: correct_char = labels[i][0]
-            
         keys.append(correct_char)
         
-        # 4. Tái tạo (Rebuild)
-        # Chỉ gửi các paragraph chứa đáp án để thay thế
-        rebuild_paragraph_options(doc, paragraphs, options_data, labels)
-        
-        # Cập nhật q_block (thực ra XML đã đổi, list q_block chỉ để tham chiếu)
+        # 4. Rebuild
+        rebuild_paragraph_options(doc, paragraphs, options_data, labels, pre_text)
         processed_qs.append(q_block)
         
     return processed_qs, keys
@@ -309,7 +332,7 @@ def process_tf_rebuild(questions, doc):
     labels = ["a)", "b)", "c)", "d)"]
     
     for q_block in questions:
-        paragraphs, options_data = extract_and_clean_options(q_block, "tf")[:2]
+        paragraphs, options_data, pre_text = extract_and_parse_options(q_block, "tf")
         
         if len(options_data) < 2:
             processed_qs.append(q_block)
@@ -318,35 +341,35 @@ def process_tf_rebuild(questions, doc):
             
         random.shuffle(options_data)
         
-        # Key string
         res_str = []
         for i, opt in enumerate(options_data):
             status = "Đ" if opt['correct'] else "S"
             res_str.append(f"{labels[i][:-1]}{status}")
-            
         keys.append(" - ".join(res_str))
         
-        rebuild_paragraph_options(doc, paragraphs, options_data, labels)
+        rebuild_paragraph_options(doc, paragraphs, options_data, labels, pre_text)
         processed_qs.append(q_block)
         
     return processed_qs, keys
 
 def process_short_clean(questions):
+    """Làm sạch key trong P3"""
     keys = []
     for q_block in questions:
-        full_text = "".join([get_text(p) for p in q_block])
+        full_text = "".join([get_full_text_safe(p) for p in q_block])
+        # Regex tìm key linh hoạt
         m = re.search(r'<\s*key\s*=\s*(.*?)\s*>', full_text, re.IGNORECASE)
         k = m.group(1).strip() if m else ""
         keys.append(k)
         
-        # Xóa thẻ key
+        # Xóa thẻ key trong text
         for p in q_block:
-            txt = get_text(p)
+            txt = get_full_text_safe(p)
             if '<' in txt and 'key' in txt:
                 clean = re.sub(r'<\s*key\s*=\s*.*?>', '', txt, flags=re.IGNORECASE)
                 clear_node_content(p)
                 p.appendChild(create_styled_run(p.ownerDocument, clean, "000000", False))
-                
+    
     return questions, keys
 
 # ==================== 5. MAIN LOGIC ====================
@@ -375,21 +398,32 @@ def generate_mix(file_bytes, num_copies):
                 dom = minidom.parseString(xml_content)
                 body = dom.getElementsByTagNameNS(W_NS, "body")[0]
                 
-                # Parse
+                # Parse Blocks
                 blocks = [n for n in body.childNodes if n.localName in ['p', 'tbl']]
-                questions = []
+                intro, questions = [], []
                 idx = 0
+                
+                # Skip intro
                 while idx < len(blocks):
-                    if re.match(r'^Câu\s*\d+', get_text(blocks[idx])):
+                    if re.match(r'^Câu\s*\d+', get_full_text_safe(blocks[idx]).strip()): break
+                    intro.append(blocks[idx])
+                    idx += 1
+                
+                # Collect Questions
+                while idx < len(blocks):
+                    txt = get_full_text_safe(blocks[idx]).strip()
+                    if re.match(r'^Câu\s*\d+', txt):
                         grp = [blocks[idx]]
                         idx += 1
                         while idx < len(blocks):
-                            if re.match(r'^Câu\s*\d+', get_text(blocks[idx])) or "PHẦN" in get_text(blocks[idx]).upper(): break
+                            sub = get_full_text_safe(blocks[idx]).strip()
+                            if re.match(r'^Câu\s*\d+', sub) or "PHẦN" in sub.upper(): break
                             grp.append(blocks[idx])
                             idx += 1
                         questions.append(grp)
                     else: idx += 1
                 
+                # Slice
                 p1 = questions[0:18]
                 p2 = questions[18:22]
                 p3 = questions[22:]
@@ -417,51 +451,59 @@ def generate_mix(file_bytes, num_copies):
                 
                 csv_data.append(row_key)
                 
-                # REBUILD BODY
+                # Rebuild Document Body
                 for n in list(body.childNodes):
                     if n.localName in ['p', 'tbl']: body.removeChild(n)
                 
-                # Header
+                # Add Header
                 body.appendChild(create_header_p(dom, "TRƯỜNG THPT MINH ĐỨC", "center", True))
                 body.appendChild(create_header_p(dom, "ĐỀ KIỂM TRA ĐỊNH KỲ", "center", True))
                 body.appendChild(create_header_p(dom, f"MÃ ĐỀ: {exam_code}", "right", True))
                 body.appendChild(create_header_p(dom, "Họ tên thí sinh:............................................ Lớp:..........", "left"))
                 body.appendChild(create_header_p(dom, "", "left"))
                 
-                # P1
+                # Add P1
                 body.appendChild(create_header_p(dom, "PHẦN I. Trắc nghiệm (18 câu)", "left", True))
                 for ix, q in enumerate(p1_fin):
-                    # Đánh lại số câu (Clean & Rebuild Label)
-                    txt = get_text(q[0])
-                    clean_q = re.sub(r'^Câu\s*\d+[\.\:]\s*', '', txt) # Bỏ "Câu X." cũ
-                    clear_node_content(q[0])
-                    # Chèn "Câu X." (Xanh)
-                    q[0].appendChild(create_styled_run(dom, f"Câu {ix+1}. ", "0070C0", True))
-                    # Chèn nội dung (Đen)
-                    q[0].appendChild(create_styled_run(dom, clean_q, "000000", False))
+                    # Renumber & Colorize Question Label
+                    p_q = q[0] # Paragraph chứa "Câu X"
+                    txt = get_full_text_safe(p_q)
+                    
+                    # Tách "Câu X." và nội dung còn lại
+                    # Xử lý trường hợp "Câu 1. Nội dung"
+                    new_num = f"Câu {ix+1}."
+                    # Remove old num (Câu \d+.)
+                    clean_txt = re.sub(r'^Câu\s*\d+[\.\:]\s*', '', txt)
+                    
+                    clear_node_content(p_q)
+                    p_q.appendChild(create_styled_run(dom, new_num + " ", "0070C0", True))
+                    p_q.appendChild(create_styled_run(dom, clean_txt, "000000", False))
+                    
                     for n in q: body.appendChild(n)
                     
-                # P2
+                # Add P2
                 body.appendChild(create_header_p(dom, "PHẦN II. Đúng Sai (4 câu)", "left", True))
                 for ix, q in enumerate(p2_fin):
-                    txt = get_text(q[0])
-                    clean_q = re.sub(r'^Câu\s*\d+[\.\:]\s*', '', txt)
-                    clear_node_content(q[0])
-                    q[0].appendChild(create_styled_run(dom, f"Câu {ix+1}. ", "0070C0", True))
-                    q[0].appendChild(create_styled_run(dom, clean_q, "000000", False))
+                    p_q = q[0]
+                    txt = get_full_text_safe(p_q)
+                    clean_txt = re.sub(r'^Câu\s*\d+[\.\:]\s*', '', txt)
+                    clear_node_content(p_q)
+                    p_q.appendChild(create_styled_run(dom, f"Câu {ix+1}. ", "0070C0", True))
+                    p_q.appendChild(create_styled_run(dom, clean_txt, "000000", False))
                     for n in q: body.appendChild(n)
                     
-                # P3
+                # Add P3
                 body.appendChild(create_header_p(dom, "PHẦN III. Trả lời ngắn (6 câu)", "left", True))
                 for ix, q in enumerate(p3_fin):
-                    txt = get_text(q[0])
-                    clean_q = re.sub(r'^Câu\s*\d+[\.\:]\s*', '', txt)
-                    clear_node_content(q[0])
-                    q[0].appendChild(create_styled_run(dom, f"Câu {ix+1}. ", "0070C0", True))
-                    q[0].appendChild(create_styled_run(dom, clean_q, "000000", False))
+                    p_q = q[0]
+                    txt = get_full_text_safe(p_q)
+                    clean_txt = re.sub(r'^Câu\s*\d+[\.\:]\s*', '', txt)
+                    clear_node_content(p_q)
+                    p_q.appendChild(create_styled_run(dom, f"Câu {ix+1}. ", "0070C0", True))
+                    p_q.appendChild(create_styled_run(dom, clean_txt, "000000", False))
                     for n in q: body.appendChild(n)
                 
-                # Write
+                # Write Doc
                 docx_io = io.BytesIO()
                 with zipfile.ZipFile(docx_io, 'w', zipfile.ZIP_DEFLATED) as z:
                     for it in z_in.infolist():
@@ -471,7 +513,7 @@ def generate_mix(file_bytes, num_copies):
                             z.writestr(it.filename, z_in.read(it.filename))
                 z_out.writestr(f"De_Thi/De_{exam_code}.docx", docx_io.getvalue())
         
-        # CSV
+        # Write CSV
         csv_io = io.StringIO()
         w = csv.writer(csv_io)
         w.writerow(["Mã đề"] + [str(i) for i in range(1,19)] + [f"II_{i}" for i in range(1,5)] + [f"III_{i}" for i in range(1,7)])
@@ -489,7 +531,7 @@ uploaded_file = st.file_uploader("Kéo thả file .docx vào đây", type=['docx
 
 if uploaded_file:
     st.success(f"✅ Đã nhận: {uploaded_file.name}")
-    st.info("💡 Code mới: Tự động xây lại đáp án để sửa lỗi trùng lặp và màu sắc.")
+    st.info("💡 Lưu ý: Hệ thống sẽ tự động tách dòng và sửa lỗi hiển thị.")
 
 st.write("")
 num = st.number_input("Số lượng đề cần tạo", 1, 50, 4)
@@ -499,17 +541,17 @@ if st.button("🚀 BẮT ĐẦU TRỘN"):
         st.warning("Vui lòng chọn file!")
     else:
         try:
-            with st.spinner("Đang tái cấu trúc đề thi..."):
+            with st.spinner("Đang xử lý (Re-Engineered Core)..."):
                 final_zip = generate_mix(uploaded_file.read(), num)
-                st.success("✅ Thành công! Đã sửa lỗi hiển thị.")
+                st.success("✅ Thành công! Tải xuống bên dưới.")
                 st.download_button(
                     "📥 Tải về (ZIP)",
                     final_zip,
-                    "KetQua_TNMic_Pro.zip",
+                    "KetQua_TNMic_V4.zip",
                     "application/zip"
                 )
         except Exception as e:
             st.error(f"Lỗi: {e}")
 
 st.markdown('</div>', unsafe_allow_html=True)
-st.markdown('<div class="footer">© 2024 TNMic • Re-Engineered Core</div>', unsafe_allow_html=True)
+st.markdown('<div class="footer">© 2024 TNMic • Ultimate Edition</div>', unsafe_allow_html=True)
