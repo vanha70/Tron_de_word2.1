@@ -1,8 +1,8 @@
 """
-PHẦN MỀM TRỘN ĐỀ - TNMic (ULTIMATE VERSION)
-1. Fix triệt để lỗi trùng đáp án (Do split run trong Word).
-2. Fix lỗi màu sắc: Tạo nhãn mới 100% (Xanh Dương + Đậm).
-3. Giao diện: Xanh Ngọc (Teal) hiện đại.
+PHẦN MỀM TRỘN ĐỀ - TNMic (ULTIMATE FIX)
+1. Fix lỗi nghiêm trọng: Trùng lặp đáp án (Do không xóa sạch nhãn cũ).
+2. Fix lỗi màu sắc: Tạo nhãn mới hoàn toàn (Xanh Dương + Đậm + Times New Roman).
+3. Giao diện: Scientific Teal (Xanh Ngọc).
 """
 
 import streamlit as st
@@ -222,13 +222,13 @@ def replace_label_and_style(paragraph, new_label, doc, mode="mcq"):
     if match:
         chars_to_remove = len(match.group(0))
         
-        # 2. Xóa text cũ khỏi các node
+        # 2. Xóa text cũ khỏi các node (Loop qua các Run/Text node)
         t_nodes = paragraph.getElementsByTagNameNS(W_NS, "t")
         for t in t_nodes:
             if not t.firstChild: continue
             val = t.firstChild.nodeValue
             if len(val) >= chars_to_remove:
-                # Cắt phần đầu, giữ phần sau
+                # Cắt phần đầu (nhãn cũ), giữ phần sau
                 t.firstChild.nodeValue = val[chars_to_remove:]
                 chars_to_remove = 0
                 break
@@ -450,7 +450,7 @@ def generate_mix(file_bytes, num_copies):
                         # Đánh lại số câu (Câu 1...)
                         if t.firstChild and re.match(r'^Câu\s*\d+', t.firstChild.nodeValue):
                             t.firstChild.nodeValue = re.sub(r'^Câu\s*\d+', f"Câu {i+1}", t.firstChild.nodeValue)
-                            # Tô màu xanh cho chữ Câu...
+                            # Tô màu xanh số câu (Câu 1, Câu 2...)
                             replace_label_and_style(q[0], f"Câu {i+1}.", dom, "mcq") 
                             break
                     final_blocks.extend(q)
