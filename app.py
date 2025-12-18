@@ -1,10 +1,7 @@
 """
-TNMic PRO - PHẦN MỀM TRỘN ĐỀ (RE-BUILT CORE)
-------------------------------------------------
-Phiên bản này được viết lại để khắc phục triệt để:
-1. Lỗi trùng lặp đáp án.
-2. Lỗi không đồng bộ màu sắc/in đậm.
-3. Cơ chế: Xóa sạch gốc rễ nhãn cũ -> Chèn nhãn mới chuẩn xác.
+TNMic PRO - TRỘN ĐỀ TRẮC NGHIỆM (RE-BUILT CORE)
+Phiên bản: Fix triệt để lỗi trùng lặp và lỗi font/màu sắc.
+Cơ chế: Xóa sạch nhãn cũ ở cấp độ XML -> Chèn nhãn mới chuẩn định dạng.
 """
 
 import streamlit as st
@@ -15,9 +12,9 @@ import io
 import csv
 from xml.dom import minidom
 
-# ==================== 1. GIAO DIỆN & CẤU HÌNH ====================
+# ==================== 1. CẤU HÌNH & GIAO DIỆN ====================
 st.set_page_config(
-    page_title="TNMic - Trộn Đề Trắc Nghiệm",
+    page_title="TNMic - Trộn Đề Minh Đức",
     page_icon="🧬",
     layout="centered",
     initial_sidebar_state="collapsed"
@@ -25,13 +22,14 @@ st.set_page_config(
 
 CUSTOM_CSS = """
 <style>
-    /* Reset & Base */
+    /* Reset */
     header {visibility: hidden;}
     .stApp > header {display: none;}
     .block-container {padding-top: 1rem; padding-bottom: 5rem;}
     
+    /* NỀN TRANG: Teal Dot Matrix */
     [data-testid="stAppViewContainer"] {
-        background-color: #f0fdfa; /* Teal nhạt */
+        background-color: #f0fdfa; /* Teal rất nhạt */
         background-image: radial-gradient(#99f6e4 1px, transparent 1px);
         background-size: 24px 24px;
         font-family: 'Segoe UI', Arial, sans-serif;
@@ -135,7 +133,7 @@ def get_full_text(paragraph_node):
 
 def create_styled_run(doc, text, color_hex="0070C0", is_bold=True):
     """
-    Tạo một thẻ Run (<w:r>) mới với đầy đủ định dạng:
+    Tạo một thẻ Run (<w:r>) mới với đầy đủ định dạng chuẩn:
     - Font: Times New Roman
     - Color: Xanh Dương (#0070C0)
     - Style: In Đậm (Bold)
@@ -174,12 +172,13 @@ def strip_label_prefix(paragraph, regex_pattern):
     """
     Hàm 'Ăn mòn' nhãn cũ:
     Tìm nhãn cũ (VD: 'A.') và xóa sạch nó khỏi các thẻ XML đầu tiên.
+    Điều này giải quyết vấn đề thẻ bị chia nhỏ.
     """
     full_txt = get_full_text(paragraph)
     match = re.match(regex_pattern, full_txt)
     
     if match:
-        chars_to_delete = len(match.group(0)) # Số ký tự cần xóa
+        chars_to_delete = len(match.group(0)) # Số ký tự cần xóa (VD: 2 ký tự cho 'A.')
         
         # Duyệt qua các thẻ text để xóa dần
         t_nodes = paragraph.getElementsByTagNameNS(W_NS, "t")
@@ -191,11 +190,11 @@ def strip_label_prefix(paragraph, regex_pattern):
             
             if chars_to_delete > 0:
                 if len_val <= chars_to_delete:
-                    # Xóa toàn bộ nội dung node này
+                    # Xóa toàn bộ nội dung node này nếu nó nằm trọn trong phần cần xóa
                     t.firstChild.nodeValue = ""
                     chars_to_delete -= len_val
                 else:
-                    # Cắt phần đầu
+                    # Cắt phần đầu, giữ phần đuôi
                     t.firstChild.nodeValue = val[chars_to_delete:]
                     chars_to_delete = 0
             
@@ -294,7 +293,6 @@ def process_tf(questions, doc):
         if len(opt_indices) >= 2:
             opts = [q_block[i] for i in opt_indices]
             
-            # Map trạng thái
             status_map = {}
             for opt in opts:
                 is_true = is_correct_answer(opt)
@@ -326,7 +324,7 @@ def process_short(questions):
         key_val = ""
         full_txt = "".join([get_full_text(n) for n in q_block])
         
-        # Tìm Key <key=...>
+        # Tìm Key <key=...> (Chấp nhận cả khoảng trắng)
         m = re.search(r'<\s*key\s*=\s*(.*?)\s*>', full_txt, re.IGNORECASE)
         if m:
             key_val = m.group(1).strip()
@@ -344,7 +342,7 @@ def process_short(questions):
         
     return processed_qs, keys
 
-# ==================== 4. LOGIC TỔNG HỢP ====================
+# ==================== 4. LOGIC TỔNG HỢP & XUẤT FILE ====================
 
 def parse_docx(dom):
     body = dom.getElementsByTagNameNS(W_NS, "body")[0]
@@ -435,7 +433,7 @@ def generate_mix(file_bytes, num_copies):
                 body.appendChild(create_header_p(dom, "TRƯỜNG THPT MINH ĐỨC", "center", True))
                 body.appendChild(create_header_p(dom, "ĐỀ KIỂM TRA ĐỊNH KỲ", "center", True))
                 body.appendChild(create_header_p(dom, f"MÃ ĐỀ: {exam_code}", "right", True))
-                body.appendChild(create_header_p(dom, "Họ tên:.......................................................... Lớp:..........", "left"))
+                body.appendChild(create_header_p(dom, "Họ tên thí sinh:............................................ Lớp:..........", "left"))
                 body.appendChild(create_header_p(dom, "", "left"))
                 
                 # P1
