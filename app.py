@@ -1,8 +1,9 @@
 """
-PHẦN MỀM TRỘN ĐỀ - TNMic (FINAL DESIGN)
-1. Giao diện: Logo [TNMic] nền Cam nổi bật.
-2. Hệ thống: Giữ nguyên tông xanh ngọc (Teal).
-3. Logic: Fix màu chữ (đen), Fix đáp án P3, Xuất 1 Zip.
+PHẦN MỀM TRỘN ĐỀ - TNMic (BLUE VERSION)
+Cập nhật:
+1. Giao diện: Tông màu Xanh Dương chủ đạo.
+2. Header: TNMic (bỏ ngoặc vuông).
+3. Word Output: A. B. C. D. được tô màu Xanh Dương + In Đậm.
 """
 
 import streamlit as st
@@ -16,12 +17,12 @@ from xml.dom import minidom
 # ==================== 1. CẤU HÌNH TRANG ====================
 st.set_page_config(
     page_title="TNMic - Trộn Đề Trắc Nghiệm",
-    page_icon="🍊",
+    page_icon="📘",
     layout="centered",
     initial_sidebar_state="collapsed"
 )
 
-# ==================== 2. CSS GIAO DIỆN (CAM & XANH NGỌC) ====================
+# ==================== 2. CSS GIAO DIỆN (BLUE THEME) ====================
 CUSTOM_CSS = """
 <style>
     /* Ẩn thành phần thừa */
@@ -32,26 +33,26 @@ CUSTOM_CSS = """
         padding-bottom: 5rem !important;
     }
     
-    /* Nền trang Gradient Xanh Ngọc dịu mắt */
+    /* Nền trang */
     [data-testid="stAppViewContainer"] {
-        background: linear-gradient(135deg, #e0f2f1 0%, #b2dfdb 100%);
+        background: linear-gradient(180deg, #f0f8ff 0%, #e6f2ff 100%);
         font-family: 'Segoe UI', sans-serif;
     }
 
-    /* HEADER WRAPPER (Khung trắng bao ngoài) */
+    /* HEADER WRAPPER */
     .header-wrapper {
         background: white;
         padding: 2.5rem;
         border-radius: 20px;
         text-align: center;
-        box-shadow: 0 10px 30px rgba(0, 150, 136, 0.2);
-        border-bottom: 5px solid #ff7043; /* Viền dưới màu cam */
+        box-shadow: 0 10px 30px rgba(0, 86, 179, 0.15);
+        border-bottom: 5px solid #0056b3; /* Viền xanh dương đậm */
         margin-bottom: 30px;
     }
 
-    /* LOGO TNMic (NỀN CAM - ĐIỂM NHẤN) */
+    /* LOGO TNMic (NỀN XANH DƯƠNG) */
     .tnmic-logo {
-        background: linear-gradient(135deg, #ff7043 0%, #ff5722 100%); /* Gradient Cam */
+        background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
         color: white;
         font-family: 'Arial', sans-serif;
         font-size: 2.5rem;
@@ -61,29 +62,31 @@ CUSTOM_CSS = """
         border-radius: 50px;
         display: inline-block;
         margin-bottom: 15px;
-        box-shadow: 0 5px 15px rgba(255, 87, 34, 0.4);
+        box-shadow: 0 5px 15px rgba(0, 86, 179, 0.3);
         text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
         letter-spacing: 2px;
     }
 
+    /* TÊN PHẦN MỀM (MÀU XANH) */
     .software-name {
-        color: #00897b; /* Màu xanh ngọc */
-        font-size: 1.5rem;
+        color: #0056b3;
+        font-size: 1.6rem;
         font-weight: 800;
         margin: 5px 0;
         text-transform: uppercase;
     }
 
+    /* INFO GIÁO VIÊN (VIỀN XANH) */
     .teacher-info {
         font-size: 1.1rem;
         font-weight: 700;
-        color: #00695c;
-        background-color: #e0f2f1;
+        color: #004494;
+        background-color: #eaf4ff;
         padding: 10px 25px;
         border-radius: 50px;
         display: inline-block;
         margin-top: 15px;
-        border: 2px solid #b2dfdb;
+        border: 2px solid #b6d4fe;
     }
 
     /* CARD UPLOAD */
@@ -94,9 +97,9 @@ CUSTOM_CSS = """
         box-shadow: 0 8px 20px rgba(0,0,0,0.05);
     }
 
-    /* NÚT BẤM (Vẫn giữ màu Xanh Ngọc cho hài hòa nền) */
+    /* NÚT BẤM (GRADIENT BLUE) */
     .stButton > button {
-        background: linear-gradient(90deg, #26a69a, #00897b);
+        background: linear-gradient(90deg, #007bff, #0056b3);
         color: white;
         font-weight: bold;
         border: none;
@@ -105,19 +108,19 @@ CUSTOM_CSS = """
         width: 100%;
         font-size: 1.2rem;
         text-transform: uppercase;
-        box-shadow: 0 4px 10px rgba(38, 166, 154, 0.4);
+        box-shadow: 0 4px 10px rgba(0, 86, 179, 0.3);
         transition: all 0.3s;
     }
     .stButton > button:hover {
-        background: linear-gradient(90deg, #00897b, #004d40);
+        background: linear-gradient(90deg, #0056b3, #004494);
         transform: translateY(-2px);
-        box-shadow: 0 6px 15px rgba(38, 166, 154, 0.6);
+        box-shadow: 0 6px 15px rgba(0, 86, 179, 0.5);
     }
     
     .footer {
         text-align: center;
         margin-top: 40px;
-        color: #546e7a;
+        color: #6c757d;
         font-size: 0.9rem;
     }
 </style>
@@ -125,7 +128,7 @@ CUSTOM_CSS = """
 
 HEADER_HTML = """
 <div class="header-wrapper">
-    <div class="tnmic-logo">[TNMic]</div>
+    <div class="tnmic-logo">TNMic</div>
     <div class="software-name">PHẦN MỀM TRỘN ĐỀ</div>
     <div class="teacher-info">GV: Nguyễn Văn Hà • Zalo: 0913968302</div>
 </div>
@@ -164,15 +167,11 @@ def create_paragraph(doc, text, align="left", bold=False):
     return p
 
 def add_header_to_doc(doc, body, exam_code):
-    """Thêm Header vào file Word"""
     nodes = []
-    # Dòng 1: [TNMic]
-    nodes.append(create_paragraph(doc, "[TNMic] - TRƯỜNG THPT MINH ĐỨC", "center", bold=True))
-    # Dòng 2: Tiêu đề
+    # Header trong file Word cũng dùng TNMic
+    nodes.append(create_paragraph(doc, "TNMic - TRƯỜNG THPT MINH ĐỨC", "center", bold=True))
     nodes.append(create_paragraph(doc, "ĐỀ KIỂM TRA ĐỊNH KỲ", "center", bold=True))
-    # Dòng 3: Mã đề
     nodes.append(create_paragraph(doc, f"MÃ ĐỀ: {exam_code}", "right", bold=True))
-    # Dòng 4: Họ tên
     nodes.append(create_paragraph(doc, "Họ tên thí sinh:...................................................... Lớp:..........", "left"))
     nodes.append(create_paragraph(doc, "", "left"))
     
@@ -211,7 +210,8 @@ def remove_answer_signal(run_node):
 
 def style_label(run_node, doc):
     """
-    FIX MÀU CHỮ: Chỉ in đậm (Bold), KHÔNG tô màu.
+    TÔ MÀU XANH + IN ĐẬM CHO A. B. C. D.
+    Mã màu: 0070C0 (Xanh Word chuẩn) hoặc 0000FF (Blue)
     """
     rPr_list = run_node.getElementsByTagNameNS(W_NS, "rPr")
     if rPr_list: rPr = rPr_list[0]
@@ -219,7 +219,16 @@ def style_label(run_node, doc):
         rPr = doc.createElementNS(W_NS, "w:rPr")
         run_node.insertBefore(rPr, run_node.firstChild)
     
-    # Chỉ thêm thẻ Bold (w:b)
+    # 1. Thêm màu Xanh Dương
+    color_node = doc.createElementNS(W_NS, "w:color")
+    color_node.setAttributeNS(W_NS, "w:val", "0070C0") # Mã màu Xanh Dương đẹp
+    
+    # Xóa màu cũ nếu có để tránh xung đột
+    old_colors = rPr.getElementsByTagNameNS(W_NS, "color")
+    for oc in old_colors: rPr.removeChild(oc)
+    rPr.appendChild(color_node)
+
+    # 2. Thêm In Đậm
     if not rPr.getElementsByTagNameNS(W_NS, "b"):
         rPr.appendChild(doc.createElementNS(W_NS, "w:b"))
 
@@ -271,6 +280,7 @@ def process_mcq(q_blocks, doc):
             for t in t_nodes:
                 if t.firstChild:
                     t.firstChild.nodeValue = re.sub(pat, lbls[idx], t.firstChild.nodeValue, 1)
+                    # Gọi hàm tô màu xanh
                     style_label(t.parentNode, doc)
                     break
     return q_blocks, correct_char
@@ -300,12 +310,12 @@ def process_tf(q_blocks, doc):
             for t in t_nodes:
                 if t.firstChild:
                     t.firstChild.nodeValue = re.sub(pat, curr_lbl, t.firstChild.nodeValue, 1)
+                    # Gọi hàm tô màu xanh
                     style_label(t.parentNode, doc)
                     break
     return q_blocks, " - ".join(res_str)
 
 def process_short(q_blocks):
-    """Tìm key trong toàn bộ nội dung câu hỏi"""
     key_val = ""
     full_text = ""
     for b in q_blocks:
@@ -344,7 +354,6 @@ def generate_mix(file_bytes, num_copies):
                 blocks = [n for n in body.childNodes if n.localName in ['p', 'tbl']]
                 intro, all_qs = parse_blocks(blocks)
                 
-                # Cắt phần
                 p1_qs = all_qs[0:18]
                 p2_qs = all_qs[18:22]
                 p3_qs = all_qs[22:]
