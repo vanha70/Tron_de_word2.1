@@ -1,7 +1,7 @@
 """
-PHẦN MỀM TRỘN ĐỀ - TNMic (TEAL VERSION - FIXED ALL)
-1. Fix SyntaxError.
-2. Fix lỗi hiển thị màu sắc: Đảm bảo 100% A. B. C. D. màu Xanh Dương + In Đậm.
+PHẦN MỀM TRỘN ĐỀ - TNMic (ULTIMATE VERSION)
+1. Fix triệt để lỗi trùng đáp án (Do split run trong Word).
+2. Fix lỗi màu sắc: Tạo nhãn mới 100% (Xanh Dương + Đậm).
 3. Giao diện: Xanh Ngọc (Teal) hiện đại.
 """
 
@@ -15,118 +15,122 @@ from xml.dom import minidom
 
 # ==================== 1. CẤU HÌNH TRANG ====================
 st.set_page_config(
-    page_title="TNMic - Trộn Đề Minh Đức",
-    page_icon="📘",
+    page_title="TNMic - Smart Exam Mixer",
+    page_icon="🧬",
     layout="centered",
     initial_sidebar_state="collapsed"
 )
 
-# ==================== 2. CSS GIAO DIỆN (TEAL THEME) ====================
+# ==================== 2. CSS GIAO DIỆN (SCIENTIFIC TEAL) ====================
 CUSTOM_CSS = """
 <style>
     /* Ẩn header mặc định */
     header {visibility: hidden;}
     .stApp > header {display: none;}
     .block-container {
-        padding-top: 2rem !important;
+        padding-top: 1rem !important;
         padding-bottom: 5rem !important;
     }
     
-    /* NỀN TRANG: Gradient Xanh Ngọc */
+    /* NỀN TRANG: Họa tiết chấm bi khoa học */
     [data-testid="stAppViewContainer"] {
-        background: linear-gradient(135deg, #e0f2f1 0%, #b2dfdb 100%);
+        background-color: #f0fdfa; /* Teal nhạt */
+        background-image: radial-gradient(#99f6e4 1px, transparent 1px);
+        background-size: 20px 20px;
         font-family: 'Segoe UI', sans-serif;
     }
 
-    /* HEADER */
+    /* HEADER WRAPPER */
     .header-wrapper {
-        background: white;
+        background: #ffffff;
         padding: 2.5rem;
         border-radius: 20px;
         text-align: center;
-        box-shadow: 0 10px 30px rgba(0, 150, 136, 0.2);
-        border-bottom: 5px solid #009688;
+        box-shadow: 0 10px 30px -5px rgba(0, 150, 136, 0.15);
+        border: 1px solid #ccfbf1;
+        border-top: 6px solid #0d9488; /* Teal đậm */
         margin-bottom: 30px;
     }
 
-    /* LOGO TNMic */
-    .tnmic-logo {
-        background: linear-gradient(135deg, #26a69a 0%, #00897b 100%);
-        color: white;
-        font-family: 'Arial', sans-serif;
-        font-size: 2.5rem;
+    /* LOGO & TITLE */
+    .school-name {
+        color: #115e59;
+        font-family: 'Times New Roman', serif;
+        font-size: 1.8rem;
         font-weight: 900;
         text-transform: uppercase;
-        padding: 10px 40px;
-        border-radius: 50px;
-        display: inline-block;
-        margin-bottom: 15px;
-        box-shadow: 0 5px 15px rgba(0, 137, 123, 0.4);
-        text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
-        letter-spacing: 2px;
+        margin-bottom: 5px;
+        letter-spacing: 1px;
     }
 
-    .software-name {
-        color: #00796b;
-        font-size: 1.6rem;
+    .software-badge {
+        display: inline-block;
+        background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%);
+        color: white;
+        padding: 8px 30px;
+        border-radius: 50px;
         font-weight: 800;
-        margin: 5px 0;
+        font-size: 1.5rem;
         text-transform: uppercase;
+        margin: 10px 0;
+        box-shadow: 0 4px 10px rgba(13, 148, 136, 0.3);
     }
 
     .teacher-info {
-        font-size: 1.1rem;
-        font-weight: 700;
-        color: #004d40;
-        background-color: #e0f2f1;
-        padding: 10px 25px;
-        border-radius: 50px;
+        font-size: 1rem;
+        font-weight: 600;
+        color: #0f766e;
+        background-color: #ccfbf1;
+        padding: 8px 20px;
+        border-radius: 12px;
         display: inline-block;
         margin-top: 15px;
-        border: 2px solid #80cbc4;
+        border: 1px solid #99f6e4;
     }
 
     /* CARD UPLOAD */
     .main-card {
-        background: white;
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
         padding: 30px;
         border-radius: 20px;
-        box-shadow: 0 8px 20px rgba(0,0,0,0.05);
+        box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+        border: 1px solid #e2e8f0;
     }
 
-    /* NÚT BẤM (TEAL) */
+    /* INPUT & BUTTON */
     .stButton > button {
-        background: linear-gradient(90deg, #26a69a, #00897b);
+        background: linear-gradient(90deg, #0d9488, #14b8a6);
         color: white;
-        font-weight: bold;
         border: none;
-        padding: 12px 0;
+        padding: 12px 24px;
         border-radius: 10px;
-        width: 100%;
-        font-size: 1.2rem;
+        font-weight: 700;
+        font-size: 1.1rem;
         text-transform: uppercase;
-        box-shadow: 0 4px 10px rgba(0, 150, 136, 0.3);
-        transition: all 0.3s;
+        width: 100%;
+        box-shadow: 0 4px 12px rgba(13, 148, 136, 0.3);
+        transition: all 0.2s;
     }
     .stButton > button:hover {
-        background: linear-gradient(90deg, #00897b, #004d40);
         transform: translateY(-2px);
-        box-shadow: 0 6px 15px rgba(0, 150, 136, 0.5);
+        background: linear-gradient(90deg, #0f766e, #0d9488);
     }
-    
+
     .footer {
         text-align: center;
+        color: #64748b;
+        font-size: 0.85rem;
         margin-top: 40px;
-        color: #546e7a;
-        font-size: 0.9rem;
     }
 </style>
 """
 
 HEADER_HTML = """
 <div class="header-wrapper">
-    <div class="tnmic-logo">TNMic</div>
-    <div class="software-name">PHẦN MỀM TRỘN ĐỀ</div>
+    <div class="school-name">TRƯỜNG THPT MINH ĐỨC</div>
+    <div class="software-badge">PHẦN MỀM TRỘN ĐỀ</div>
+    <br>
     <div class="teacher-info">GV: Nguyễn Văn Hà • Zalo: 0913968302</div>
 </div>
 """
@@ -147,13 +151,11 @@ def create_paragraph(doc, text, align="left", bold=False):
     
     r = create_element(doc, "w:r")
     rPr = create_element(doc, "w:rPr")
-    
     # Font Times New Roman
     rFonts = create_element(doc, "w:rFonts")
     rFonts.setAttributeNS(W_NS, "w:ascii", "Times New Roman")
     rFonts.setAttributeNS(W_NS, "w:hAnsi", "Times New Roman")
     rPr.appendChild(rFonts)
-    
     if bold: rPr.appendChild(create_element(doc, "w:b"))
     r.appendChild(rPr)
     
@@ -165,7 +167,7 @@ def create_paragraph(doc, text, align="left", bold=False):
 
 def add_header_to_doc(doc, body, exam_code):
     nodes = []
-    nodes.append(create_paragraph(doc, "TNMic - TRƯỜNG THPT MINH ĐỨC", "center", bold=True))
+    nodes.append(create_paragraph(doc, "TRƯỜNG THPT MINH ĐỨC", "center", bold=True))
     nodes.append(create_paragraph(doc, "ĐỀ KIỂM TRA ĐỊNH KỲ", "center", bold=True))
     nodes.append(create_paragraph(doc, f"MÃ ĐỀ: {exam_code}", "right", bold=True))
     nodes.append(create_paragraph(doc, "Họ tên thí sinh:...................................................... Lớp:..........", "left"))
@@ -184,8 +186,7 @@ def get_text(block):
         if t.firstChild: texts.append(t.firstChild.nodeValue)
     return "".join(texts).strip()
 
-# --- XỬ LÝ ĐÁP ÁN (GẠCH CHÂN / ĐỎ / KEY) ---
-
+# --- XỬ LÝ ĐÁP ÁN GỐC ---
 def check_is_correct(run_node):
     rPr_list = run_node.getElementsByTagNameNS(W_NS, "rPr")
     if not rPr_list: return False
@@ -198,69 +199,83 @@ def check_is_correct(run_node):
     return False
 
 def remove_answer_signal(run_node):
+    """Xóa gạch chân/đỏ trong run"""
     rPr_list = run_node.getElementsByTagNameNS(W_NS, "rPr")
     if not rPr_list: return
     rPr = rPr_list[0]
     for u in rPr.getElementsByTagNameNS(W_NS, "u"): rPr.removeChild(u)
     for c in rPr.getElementsByTagNameNS(W_NS, "color"): rPr.removeChild(c)
 
-def style_label_force_blue(run_node, doc):
+# --- THUẬT TOÁN THAY THẾ NHÃN AN TOÀN (ROBUST REPLACEMENT) ---
+def replace_label_and_style(paragraph, new_label, doc, mode="mcq"):
     """
-    FIX COLOR: Ép màu Xanh Dương (#0070C0) và In Đậm
-    Sử dụng logic kiểm tra rPr an toàn.
+    1. Tìm chuỗi bắt đầu (A. B. hoặc a) b)...).
+    2. Xóa chuỗi cũ khỏi các text node (xử lý trường hợp bị chia nhỏ).
+    3. Chèn Run mới chứa nhãn mới + Style Xanh Đậm vào đầu.
     """
-    # 1. Lấy hoặc tạo rPr
-    rPr_list = run_node.getElementsByTagNameNS(W_NS, "rPr")
-    if rPr_list: 
-        rPr = rPr_list[0]
-    else:
-        rPr = doc.createElementNS(W_NS, "w:rPr")
-        run_node.insertBefore(rPr, run_node.firstChild)
+    pattern_str = r'^\s*[A-D][\.\)]\s*' if mode == "mcq" else r'^\s*[a-d][\.\)]\s*'
     
-    # 2. Xử lý Màu (Color)
-    colors = rPr.getElementsByTagNameNS(W_NS, "color")
-    if colors:
-        # Nếu đã có thẻ màu, sửa thuộc tính val
-        colors[0].setAttributeNS(W_NS, "w:val", "0070C0")
+    # 1. Lấy toàn bộ text để xác định độ dài cần cắt
+    full_text = get_text(paragraph)
+    match = re.match(pattern_str, full_text)
+    
+    if match:
+        chars_to_remove = len(match.group(0))
+        
+        # 2. Xóa text cũ khỏi các node
+        t_nodes = paragraph.getElementsByTagNameNS(W_NS, "t")
+        for t in t_nodes:
+            if not t.firstChild: continue
+            val = t.firstChild.nodeValue
+            if len(val) >= chars_to_remove:
+                # Cắt phần đầu, giữ phần sau
+                t.firstChild.nodeValue = val[chars_to_remove:]
+                chars_to_remove = 0
+                break
+            else:
+                # Node này chứa 1 phần của nhãn, xóa hết
+                chars_to_remove -= len(val)
+                t.firstChild.nodeValue = ""
+    
+    # 3. Tạo Run mới cho Nhãn (Style chuẩn: Xanh + Đậm + Times)
+    new_run = doc.createElementNS(W_NS, "w:r")
+    rPr = doc.createElementNS(W_NS, "w:rPr")
+    
+    # Color: Blue (#0070C0)
+    color = doc.createElementNS(W_NS, "w:color")
+    color.setAttributeNS(W_NS, "w:val", "0070C0")
+    rPr.appendChild(color)
+    
+    # Bold
+    rPr.appendChild(doc.createElementNS(W_NS, "w:b"))
+    
+    # Font
+    rFonts = doc.createElementNS(W_NS, "w:rFonts")
+    rFonts.setAttributeNS(W_NS, "w:ascii", "Times New Roman")
+    rFonts.setAttributeNS(W_NS, "w:hAnsi", "Times New Roman")
+    rPr.appendChild(rFonts)
+    
+    new_run.appendChild(rPr)
+    
+    # Text
+    t = doc.createElementNS(W_NS, "w:t")
+    # Thêm khoảng trắng sau nhãn để đẹp (VD: "A. ")
+    t.setAttribute("xml:space", "preserve")
+    t.appendChild(doc.createTextNode(new_label + " "))
+    new_run.appendChild(t)
+    
+    # Chèn vào đầu đoạn văn
+    if paragraph.hasChildNodes():
+        paragraph.insertBefore(new_run, paragraph.firstChild)
     else:
-        # Nếu chưa có, tạo mới
-        color_node = doc.createElementNS(W_NS, "w:color")
-        color_node.setAttributeNS(W_NS, "w:val", "0070C0")
-        rPr.appendChild(color_node)
-
-    # 3. Xử lý In Đậm (Bold)
-    bolds = rPr.getElementsByTagNameNS(W_NS, "b")
-    if not bolds:
-        rPr.appendChild(doc.createElementNS(W_NS, "w:b"))
-
-# --- PARSER ---
-def parse_blocks(blocks):
-    intro, questions = [], []
-    i = 0
-    while i < len(blocks):
-        txt = get_text(blocks[i])
-        if re.match(r'^Câu\s*\d+', txt): break
-        intro.append(blocks[i])
-        i += 1
-    while i < len(blocks):
-        if re.match(r'^Câu\s*\d+', get_text(blocks[i])):
-            grp = [blocks[i]]
-            i += 1
-            while i < len(blocks):
-                txt = get_text(blocks[i])
-                if re.match(r'^Câu\s*\d+', txt) or "PHẦN" in txt.upper(): break
-                grp.append(blocks[i])
-                i += 1
-            questions.append(grp)
-        else: i += 1
-    return intro, questions
+        paragraph.appendChild(new_run)
 
 # --- PROCESSORS ---
 
 def process_mcq(q_blocks, doc):
     pat = r'^\s*[A-D][\.\)]'
     indices = [k for k, b in enumerate(q_blocks) if re.match(pat, get_text(b))]
-    correct_char = ""
+    correct_char = "X"
     
     if len(indices) >= 2:
         opts = [q_blocks[k] for k in indices]
@@ -271,7 +286,7 @@ def process_mcq(q_blocks, doc):
             is_cor = False
             for r in runs:
                 if check_is_correct(r): is_cor = True
-                remove_answer_signal(r)
+                remove_answer_signal(r) # Xóa dấu hiệu gốc
             if is_cor: target_opt = opt
             
         random.shuffle(opts)
@@ -284,25 +299,9 @@ def process_mcq(q_blocks, doc):
             if target_opt and opt == target_opt:
                 correct_char = lbls[idx][0]
             
-            # Ép màu cho Run đầu tiên của đoạn văn (thường chứa A. B...)
-            # Điều này đảm bảo dù regex match ở đâu, thì đầu dòng cũng được tô màu.
-            runs = opt.getElementsByTagNameNS(W_NS, "r")
-            if runs:
-                style_label_force_blue(runs[0], doc)
-
-            # Thay thế text nhãn
-            t_nodes = opt.getElementsByTagNameNS(W_NS, "t")
-            for t in t_nodes:
-                if t.firstChild:
-                    val = t.firstChild.nodeValue
-                    # Chỉ thay thế lần xuất hiện đầu tiên
-                    new_val = re.sub(pat, lbls[idx], val, 1)
-                    if new_val != val:
-                        t.firstChild.nodeValue = new_val
-                        # Đã sửa ở run[0], nhưng nếu text nằm ở run khác thì style lại parent này cho chắc
-                        style_label_force_blue(t.parentNode, doc)
-                        break
-                    
+            # SỬ DỤNG HÀM THAY THẾ AN TOÀN
+            replace_label_and_style(opt, lbls[idx], doc, "mcq")
+            
     return q_blocks, correct_char
 
 def process_tf(q_blocks, doc):
@@ -328,26 +327,17 @@ def process_tf(q_blocks, doc):
         for idx, opt in enumerate(opts):
             real_idx = indices[idx]
             q_blocks[real_idx] = opt
+            
             curr_lbl = lbls[idx]
             res_str.append(f"{curr_lbl[:-1]}{status_map[opt]}")
             
-            # Ép màu run đầu
-            runs = opt.getElementsByTagNameNS(W_NS, "r")
-            if runs: style_label_force_blue(runs[0], doc)
-
-            t_nodes = opt.getElementsByTagNameNS(W_NS, "t")
-            for t in t_nodes:
-                if t.firstChild:
-                    val = t.firstChild.nodeValue
-                    new_val = re.sub(pat, curr_lbl, val, 1)
-                    if new_val != val:
-                        t.firstChild.nodeValue = new_val
-                        style_label_force_blue(t.parentNode, doc)
-                        break
-                    
+            # SỬ DỤNG HÀM THAY THẾ AN TOÀN
+            replace_label_and_style(opt, curr_lbl, doc, "tf")
+            
     return q_blocks, " - ".join(res_str)
 
 def process_short(q_blocks):
+    """Tìm key trong toàn bộ text, xóa key khỏi đề"""
     key_val = ""
     full_text = ""
     for b in q_blocks:
@@ -358,6 +348,7 @@ def process_short(q_blocks):
     m = re.search(r'<\s*key\s*=\s*(.*?)\s*>', full_text, re.IGNORECASE)
     if m:
         key_val = m.group(1).strip()
+        # Xóa thẻ key
         for b in q_blocks:
             t_nodes = b.getElementsByTagNameNS(W_NS, "t")
             for t in t_nodes:
@@ -367,7 +358,29 @@ def process_short(q_blocks):
                     t.firstChild.nodeValue = val
     return q_blocks, key_val
 
-# --- MAIN GENERATOR ---
+# --- PARSER ---
+def parse_blocks(blocks):
+    intro, questions = [], []
+    i = 0
+    while i < len(blocks):
+        txt = get_text(blocks[i])
+        if re.match(r'^Câu\s*\d+', txt): break
+        intro.append(blocks[i])
+        i += 1
+    while i < len(blocks):
+        if re.match(r'^Câu\s*\d+', get_text(blocks[i])):
+            grp = [blocks[i]]
+            i += 1
+            while i < len(blocks):
+                txt = get_text(blocks[i])
+                if re.match(r'^Câu\s*\d+', txt) or "PHẦN" in txt.upper(): break
+                grp.append(blocks[i])
+                i += 1
+            questions.append(grp)
+        else: i += 1
+    return intro, questions
+
+# --- MAIN ENGINE ---
 
 def generate_mix(file_bytes, num_copies):
     outer_zip_buffer = io.BytesIO()
@@ -434,9 +447,11 @@ def generate_mix(file_bytes, num_copies):
                 for i, q in enumerate(p1_fin):
                     t_list = q[0].getElementsByTagNameNS(W_NS, "t")
                     for t in t_list:
+                        # Đánh lại số câu (Câu 1...)
                         if t.firstChild and re.match(r'^Câu\s*\d+', t.firstChild.nodeValue):
                             t.firstChild.nodeValue = re.sub(r'^Câu\s*\d+', f"Câu {i+1}", t.firstChild.nodeValue)
-                            style_label_force_blue(t.parentNode, dom)
+                            # Tô màu xanh cho chữ Câu...
+                            replace_label_and_style(q[0], f"Câu {i+1}.", dom, "mcq") 
                             break
                     final_blocks.extend(q)
                     
@@ -446,7 +461,7 @@ def generate_mix(file_bytes, num_copies):
                     for t in t_list:
                         if t.firstChild and re.match(r'^Câu\s*\d+', t.firstChild.nodeValue):
                             t.firstChild.nodeValue = re.sub(r'^Câu\s*\d+', f"Câu {i+1}", t.firstChild.nodeValue)
-                            style_label_force_blue(t.parentNode, dom)
+                            replace_label_and_style(q[0], f"Câu {i+1}.", dom, "mcq")
                             break
                     final_blocks.extend(q)
                 
@@ -456,7 +471,7 @@ def generate_mix(file_bytes, num_copies):
                     for t in t_list:
                         if t.firstChild and re.match(r'^Câu\s*\d+', t.firstChild.nodeValue):
                             t.firstChild.nodeValue = re.sub(r'^Câu\s*\d+', f"Câu {i+1}", t.firstChild.nodeValue)
-                            style_label_force_blue(t.parentNode, dom)
+                            replace_label_and_style(q[0], f"Câu {i+1}.", dom, "mcq")
                             break
                     final_blocks.extend(q)
                 
