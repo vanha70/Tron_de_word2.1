@@ -1,8 +1,8 @@
 """
-PHẦN MỀM TRỘN ĐỀ - THPT MINH ĐỨC (FIX MÀU CHỮ)
-Cập nhật:
-1. Sửa lỗi hiển thị: Phương án A, B, C, D về màu đen chuẩn (chỉ in đậm), không còn bị xanh.
-2. Giữ nguyên: Giao diện Xanh Ngọc, Logic 3 phần, Xuất 1 file Zip.
+PHẦN MỀM TRỘN ĐỀ - TNMic (FINAL DESIGN)
+1. Giao diện: Logo [TNMic] nền Cam nổi bật.
+2. Hệ thống: Giữ nguyên tông xanh ngọc (Teal).
+3. Logic: Fix màu chữ (đen), Fix đáp án P3, Xuất 1 Zip.
 """
 
 import streamlit as st
@@ -15,13 +15,13 @@ from xml.dom import minidom
 
 # ==================== 1. CẤU HÌNH TRANG ====================
 st.set_page_config(
-    page_title="Phần mềm Trộn Đề - Minh Đức",
-    page_icon="📘",
+    page_title="TNMic - Trộn Đề Trắc Nghiệm",
+    page_icon="🍊",
     layout="centered",
     initial_sidebar_state="collapsed"
 )
 
-# ==================== 2. CSS GIAO DIỆN (XANH NGỌC HIỆN ĐẠI) ====================
+# ==================== 2. CSS GIAO DIỆN (CAM & XANH NGỌC) ====================
 CUSTOM_CSS = """
 <style>
     /* Ẩn thành phần thừa */
@@ -38,33 +38,39 @@ CUSTOM_CSS = """
         font-family: 'Segoe UI', sans-serif;
     }
 
-    /* HEADER */
+    /* HEADER WRAPPER (Khung trắng bao ngoài) */
     .header-wrapper {
         background: white;
         padding: 2.5rem;
         border-radius: 20px;
         text-align: center;
         box-shadow: 0 10px 30px rgba(0, 150, 136, 0.2);
-        border-bottom: 5px solid #00897b;
+        border-bottom: 5px solid #ff7043; /* Viền dưới màu cam */
         margin-bottom: 30px;
     }
 
-    .school-name {
-        color: #004d40;
-        font-family: 'Times New Roman', serif;
-        font-size: 2rem;
+    /* LOGO TNMic (NỀN CAM - ĐIỂM NHẤN) */
+    .tnmic-logo {
+        background: linear-gradient(135deg, #ff7043 0%, #ff5722 100%); /* Gradient Cam */
+        color: white;
+        font-family: 'Arial', sans-serif;
+        font-size: 2.5rem;
         font-weight: 900;
         text-transform: uppercase;
-        margin-bottom: 5px;
-        text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
-        letter-spacing: 1px;
+        padding: 10px 40px;
+        border-radius: 50px;
+        display: inline-block;
+        margin-bottom: 15px;
+        box-shadow: 0 5px 15px rgba(255, 87, 34, 0.4);
+        text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
+        letter-spacing: 2px;
     }
 
     .software-name {
-        color: #00897b;
-        font-size: 1.8rem;
+        color: #00897b; /* Màu xanh ngọc */
+        font-size: 1.5rem;
         font-weight: 800;
-        margin: 10px 0;
+        margin: 5px 0;
         text-transform: uppercase;
     }
 
@@ -88,7 +94,7 @@ CUSTOM_CSS = """
         box-shadow: 0 8px 20px rgba(0,0,0,0.05);
     }
 
-    /* NÚT BẤM */
+    /* NÚT BẤM (Vẫn giữ màu Xanh Ngọc cho hài hòa nền) */
     .stButton > button {
         background: linear-gradient(90deg, #26a69a, #00897b);
         color: white;
@@ -119,7 +125,7 @@ CUSTOM_CSS = """
 
 HEADER_HTML = """
 <div class="header-wrapper">
-    <div class="school-name">TRƯỜNG THPT MINH ĐỨC</div>
+    <div class="tnmic-logo">[TNMic]</div>
     <div class="software-name">PHẦN MỀM TRỘN ĐỀ</div>
     <div class="teacher-info">GV: Nguyễn Văn Hà • Zalo: 0913968302</div>
 </div>
@@ -132,10 +138,8 @@ def create_element(doc, tag):
     return doc.createElementNS(W_NS, tag)
 
 def create_paragraph(doc, text, align="left", bold=False):
-    """Tạo đoạn văn bản Header cho file Word"""
     p = create_element(doc, "w:p")
     pPr = create_element(doc, "w:pPr")
-    
     jc = create_element(doc, "w:jc")
     jc.setAttributeNS(W_NS, "w:val", align)
     pPr.appendChild(jc)
@@ -144,7 +148,7 @@ def create_paragraph(doc, text, align="left", bold=False):
     r = create_element(doc, "w:r")
     rPr = create_element(doc, "w:rPr")
     
-    # Set Font Times New Roman
+    # Font Times New Roman
     rFonts = create_element(doc, "w:rFonts")
     rFonts.setAttributeNS(W_NS, "w:ascii", "Times New Roman")
     rFonts.setAttributeNS(W_NS, "w:hAnsi", "Times New Roman")
@@ -160,19 +164,18 @@ def create_paragraph(doc, text, align="left", bold=False):
     return p
 
 def add_header_to_doc(doc, body, exam_code):
-    """Thêm Header Trường và Mã đề vào đầu file Word"""
+    """Thêm Header vào file Word"""
     nodes = []
-    # Dòng 1: Tên Trường
-    nodes.append(create_paragraph(doc, "TRƯỜNG THPT MINH ĐỨC", "center", bold=True))
+    # Dòng 1: [TNMic]
+    nodes.append(create_paragraph(doc, "[TNMic] - TRƯỜNG THPT MINH ĐỨC", "center", bold=True))
     # Dòng 2: Tiêu đề
     nodes.append(create_paragraph(doc, "ĐỀ KIỂM TRA ĐỊNH KỲ", "center", bold=True))
-    # Dòng 3: Mã đề (Căn phải)
+    # Dòng 3: Mã đề
     nodes.append(create_paragraph(doc, f"MÃ ĐỀ: {exam_code}", "right", bold=True))
-    # Dòng 4: Họ tên (Căn trái)
+    # Dòng 4: Họ tên
     nodes.append(create_paragraph(doc, "Họ tên thí sinh:...................................................... Lớp:..........", "left"))
-    nodes.append(create_paragraph(doc, "", "left")) # Dòng trống
+    nodes.append(create_paragraph(doc, "", "left"))
     
-    # Chèn vào đầu body
     if body.hasChildNodes():
         fc = body.firstChild
         for n in reversed(nodes):
@@ -186,16 +189,13 @@ def get_text(block):
         if t.firstChild: texts.append(t.firstChild.nodeValue)
     return "".join(texts).strip()
 
-# --- XỬ LÝ ĐÁP ÁN (GẠCH CHÂN / ĐỎ / KEY) ---
+# --- XỬ LÝ ĐÁP ÁN ---
 
 def check_is_correct(run_node):
-    """Check gạch chân hoặc màu đỏ"""
     rPr_list = run_node.getElementsByTagNameNS(W_NS, "rPr")
     if not rPr_list: return False
     rPr = rPr_list[0]
-    # Check Underline
     if rPr.getElementsByTagNameNS(W_NS, "u"): return True
-    # Check Color
     color = rPr.getElementsByTagNameNS(W_NS, "color")
     if color:
         val = color[0].getAttributeNS(W_NS, "val")
@@ -203,7 +203,6 @@ def check_is_correct(run_node):
     return False
 
 def remove_answer_signal(run_node):
-    """Xóa dấu hiệu đáp án (Gạch chân/Màu)"""
     rPr_list = run_node.getElementsByTagNameNS(W_NS, "rPr")
     if not rPr_list: return
     rPr = rPr_list[0]
@@ -212,8 +211,7 @@ def remove_answer_signal(run_node):
 
 def style_label(run_node, doc):
     """
-    SỬA LỖI: Chỉ in đậm (Bold) cho nhãn A. B. C. D.
-    Đã BỎ tô màu xanh (Blue) để tránh lỗi cả dòng bị xanh.
+    FIX MÀU CHỮ: Chỉ in đậm (Bold), KHÔNG tô màu.
     """
     rPr_list = run_node.getElementsByTagNameNS(W_NS, "rPr")
     if rPr_list: rPr = rPr_list[0]
@@ -221,8 +219,7 @@ def style_label(run_node, doc):
         rPr = doc.createElementNS(W_NS, "w:rPr")
         run_node.insertBefore(rPr, run_node.firstChild)
     
-    # XÓA ĐOẠN CODE TÔ MÀU XANH CŨ
-    # Chỉ giữ lại In đậm
+    # Chỉ thêm thẻ Bold (w:b)
     if not rPr.getElementsByTagNameNS(W_NS, "b"):
         rPr.appendChild(doc.createElementNS(W_NS, "w:b"))
 
@@ -230,13 +227,11 @@ def style_label(run_node, doc):
 def parse_blocks(blocks):
     intro, questions = [], []
     i = 0
-    # Intro
     while i < len(blocks):
         txt = get_text(blocks[i])
         if re.match(r'^Câu\s*\d+', txt): break
         intro.append(blocks[i])
         i += 1
-    # Questions
     while i < len(blocks):
         if re.match(r'^Câu\s*\d+', get_text(blocks[i])):
             grp = [blocks[i]]
@@ -253,52 +248,39 @@ def parse_blocks(blocks):
 # --- PROCESSORS ---
 
 def process_mcq(q_blocks, doc):
-    """Trộn Phần 1 (A,B,C,D)"""
     pat = r'^\s*[A-D][\.\)]'
     indices = [k for k, b in enumerate(q_blocks) if re.match(pat, get_text(b))]
     correct_char = ""
-    
     if len(indices) >= 2:
         opts = [q_blocks[k] for k in indices]
-        
         target_opt = None
         for opt in opts:
             runs = opt.getElementsByTagNameNS(W_NS, "r")
             is_cor = False
             for r in runs:
                 if check_is_correct(r): is_cor = True
-                remove_answer_signal(r) # Xóa gạch chân/đỏ
+                remove_answer_signal(r)
             if is_cor: target_opt = opt
-            
         random.shuffle(opts)
-        
         lbls = ["A.", "B.", "C.", "D."]
         for idx, opt in enumerate(opts):
             real_idx = indices[idx]
             q_blocks[real_idx] = opt
-            
-            if target_opt and opt == target_opt:
-                correct_char = lbls[idx][0]
-                
+            if target_opt and opt == target_opt: correct_char = lbls[idx][0]
             t_nodes = opt.getElementsByTagNameNS(W_NS, "t")
             for t in t_nodes:
                 if t.firstChild:
-                    # Thay thế A. B. C. D.
                     t.firstChild.nodeValue = re.sub(pat, lbls[idx], t.firstChild.nodeValue, 1)
-                    # Gọi hàm style_label (đã sửa để chỉ in đậm, không in xanh)
                     style_label(t.parentNode, doc)
                     break
     return q_blocks, correct_char
 
 def process_tf(q_blocks, doc):
-    """Trộn Phần 2 (Đúng/Sai)"""
     pat = r'^\s*[a-d][\.\)]'
     indices = [k for k, b in enumerate(q_blocks) if re.match(pat, get_text(b))]
     res_str = []
-    
     if len(indices) >= 2:
         opts = [q_blocks[k] for k in indices]
-        
         status_map = {}
         for opt in opts:
             is_true = False
@@ -307,44 +289,33 @@ def process_tf(q_blocks, doc):
                 if check_is_correct(r): is_true = True
                 remove_answer_signal(r)
             status_map[opt] = "Đ" if is_true else "S"
-            
         random.shuffle(opts)
-        
         lbls = ["a)", "b)", "c)", "d)"]
         for idx, opt in enumerate(opts):
             real_idx = indices[idx]
             q_blocks[real_idx] = opt
-            
             curr_lbl = lbls[idx]
             res_str.append(f"{curr_lbl[:-1]}{status_map[opt]}")
-            
             t_nodes = opt.getElementsByTagNameNS(W_NS, "t")
             for t in t_nodes:
                 if t.firstChild:
                     t.firstChild.nodeValue = re.sub(pat, curr_lbl, t.firstChild.nodeValue, 1)
                     style_label(t.parentNode, doc)
                     break
-                    
     return q_blocks, " - ".join(res_str)
 
 def process_short(q_blocks):
-    """
-    Tìm key trong toàn bộ nội dung câu hỏi
-    """
+    """Tìm key trong toàn bộ nội dung câu hỏi"""
     key_val = ""
-    # 1. Gộp toàn bộ text của câu hỏi để quét tìm key
     full_text = ""
     for b in q_blocks:
         t_nodes = b.getElementsByTagNameNS(W_NS, "t")
         for t in t_nodes:
             if t.firstChild: full_text += t.firstChild.nodeValue
 
-    # 2. Regex tìm key linh hoạt (cho phép khoảng trắng)
     m = re.search(r'<\s*key\s*=\s*(.*?)\s*>', full_text, re.IGNORECASE)
     if m:
         key_val = m.group(1).strip()
-        
-        # 3. Xóa thẻ key trong các node
         for b in q_blocks:
             t_nodes = b.getElementsByTagNameNS(W_NS, "t")
             for t in t_nodes:
@@ -352,7 +323,6 @@ def process_short(q_blocks):
                     val = t.firstChild.nodeValue
                     val = re.sub(r'<\s*key\s*=\s*.*?>', '', val, flags=re.IGNORECASE)
                     t.firstChild.nodeValue = val
-                    
     return q_blocks, key_val
 
 # --- MAIN GENERATOR ---
@@ -362,18 +332,15 @@ def generate_mix(file_bytes, num_copies):
     csv_data = []
     
     with zipfile.ZipFile(outer_zip_buffer, 'w', zipfile.ZIP_DEFLATED) as outer_zip:
-        
         input_io = io.BytesIO(file_bytes)
         with zipfile.ZipFile(input_io, 'r') as z_in:
             xml_content = z_in.read("word/document.xml")
             
             for _ in range(num_copies):
                 exam_code = str(random.randint(1001, 9999))
-                
                 dom = minidom.parseString(xml_content)
                 doc = dom.documentElement
                 body = dom.getElementsByTagNameNS(W_NS, "body")[0]
-                
                 blocks = [n for n in body.childNodes if n.localName in ['p', 'tbl']]
                 intro, all_qs = parse_blocks(blocks)
                 
@@ -421,7 +388,6 @@ def generate_mix(file_bytes, num_copies):
                 
                 # Rebuild DOC
                 final_blocks = []
-                
                 final_blocks.append(create_paragraph(dom, "PHẦN I. Trắc nghiệm nhiều lựa chọn (18 câu)", bold=True))
                 for i, q in enumerate(p1_fin):
                     t_list = q[0].getElementsByTagNameNS(W_NS, "t")
@@ -441,7 +407,7 @@ def generate_mix(file_bytes, num_copies):
                             style_label(t.parentNode, dom)
                             break
                     final_blocks.extend(q)
-                
+                    
                 final_blocks.append(create_paragraph(dom, "PHẦN III. Trả lời ngắn (6 câu)", bold=True))
                 for i, q in enumerate(p3_fin):
                     t_list = q[0].getElementsByTagNameNS(W_NS, "t")
@@ -466,18 +432,13 @@ def generate_mix(file_bytes, num_copies):
                             z_d.writestr(item.filename, new_xml)
                         else:
                             z_d.writestr(item.filename, z_in.read(item.filename))
-                
-                # Thêm file docx vào Zip tổng
                 outer_zip.writestr(f"De_Thi/De_{exam_code}.docx", doc_io.getvalue())
         
-        # Tạo file Excel/CSV đáp án
         csv_io = io.StringIO()
         writer = csv.writer(csv_io)
         head = ["Mã đề"] + [str(i) for i in range(1,19)] + [f"II_C{i}" for i in range(1,5)] + [f"III_C{i}" for i in range(1,7)]
         writer.writerow(head)
         writer.writerows(csv_data)
-        
-        # Thêm file CSV vào Zip tổng
         outer_zip.writestr("Dap_An.csv", csv_io.getvalue().encode('utf-8-sig'))
 
     return outer_zip_buffer.getvalue()
@@ -503,16 +464,15 @@ if st.button("🚀 BẮT ĐẦU TRỘN"):
         try:
             with st.spinner("Đang xử lý..."):
                 final_zip = generate_mix(uploaded_file.read(), num)
-                
                 st.success("✅ Thành công! Tải xuống bên dưới.")
                 st.download_button(
                     label="📥 Tải về (Đề thi + Đáp án)",
                     data=final_zip,
-                    file_name="KetQua_TronDe_MinhDuc.zip",
+                    file_name="KetQua_TNMic.zip",
                     mime="application/zip"
                 )
         except Exception as e:
             st.error(f"Lỗi: {e}")
 
 st.markdown('</div>', unsafe_allow_html=True)
-st.markdown('<div class="footer">© 2024 Phần mềm Trộn Đề</div>', unsafe_allow_html=True)
+st.markdown('<div class="footer">© 2024 Phần mềm Trộn Đề [TNMic]</div>', unsafe_allow_html=True)
